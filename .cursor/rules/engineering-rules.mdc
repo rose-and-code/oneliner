@@ -1,0 +1,157 @@
+---
+description: 项目完整编码规范和开发约束
+alwaysApply: true
+---
+
+## 编码规则
+
+1. **中文日志** - 允许且尽量以中文字符串的方式打印日志, 英文也可以
+2. **中文回复** - LLM 的思考过程以及交互回复以中文为第一语言
+3. **禁止注释** - 不要写任何的注释，TypeScript/JavaScript 函数定义之后的那行注释也不要
+4. **最简原则** - 代码保持极致的简洁，使用最极致的手动给出最短的函数实现，一定要去除冗余
+5. **异常处理原则** - 如果没有百分百的确定一定需要加 try-catch 才能完成业务逻辑，则不加
+6. **禁止修改 README** - 除非我明确说明，否则不允许擅自更改 Readme 文件
+7. **禁止修改代码检查规则** - 不允许更改代码检查规则
+8. **代码检查遵循** - 生成的代码需要先研究清楚代码检查规则
+9. **无用代码清理** - 绝对不要添加没有被任何调用的空函数
+10. **函数长度限制** - 函数不应该超过 200 行
+11. **后端导入** - 不许延迟导入
+12. **工具函数** - 优先使用工具函数，避免过度封装成类
+13. **TypeScript 规范** - 使用 TypeScript 的严格模式，避免使用 any 类型
+14. **配置文件规范** - 环境变量使用 .env.dev 等
+15. **依赖管理** - 安装依赖时默认安装最新版本
+16. **测试目录** - 测试文件放在对应组件/模块的同级目录下，使用 .test.ts 后缀
+17. **常量管理** - 常量统一放在 constants.ts 文件中
+18. **类型定义** - 类型定义放在 types 或 typings 目录下
+19. **API 调用** - API 相关逻辑放在 services 目录下
+20. **禁止自动调用快捷指令** - 不允许非人工的自动的调用快捷指令
+21. **代码格式化** - 使用项目配置的 ESLint 规则
+22. **导入顺序** - import 语句按照第三方库、本地组件、样式文件的顺序排列
+23. **文件命名** - 组件文件使用 PascalCase，其他文件使用 camelCase
+24. **目录结构** - 保持清晰的目录结构，相关功能模块放在同一目录下
+25. **type 需要放到 type 文件夹里面，工具函数需要放到 utils 里面**
+26. **Tools Function must have a docstring.**
+
+## 小程序规范
+
+1. **页面结构** - 每个页面包含 .ts, .wxml, .scss, .json 四个文件
+2. **样式框架** - 使用 weapp-vite + Tailwind CSS，通过 weapp-tailwindcss 插件适配
+3. **纯 Tailwind 样式** - 小程序优先使用 Tailwind CSS 类做样式，.scss 文件保持空白或只用于 @apply；但 Skyline 下 Tailwind 部分 class 不稳定（如嵌套 flex 中的 `gap-*`、`flex-1`），关键布局属性允许使用 inline style 兜底
+4. **数据请求** - 统一通过 services 层调用后端 API
+5. **状态管理** - 使用小程序原生状态管理，复杂场景使用 globalData
+6. **禁止可选链** - 不允许使用 `?.` 可选链操作符，微信小程序 JS 引擎不支持
+7. **禁止空值合并** - 不允许使用 `??` 空值合并操作符，微信小程序 JS 引擎不支持
+8. **Tailwind CSS 渐变支持** - 项目已配置 `injectAdditionalCssVarScope: true`，渐变(bg-gradient-*)、透明度(bg-opacity-*、text-opacity-*)等依赖 CSS 变量的 Tailwind 类可正常使用，需同时使用方向类和颜色类（如 `bg-gradient-to-br from-purple-500 to-pink-500`）
+9. **构建工具依赖** - tailwindcss、autoprefixer、postcss 等构建工具必须放在 devDependencies，否则会被打包进小程序导致体积超限
+10. **Skyline 渲染引擎** - 必须使用 Skyline 作为小程序渲染引擎，禁止使用 WebView 渲染模式
+11. **Worklet 动画** - 动画和手势必须使用 Worklet 实现，充分利用 Skyline 的性能优势，禁止使用传统的 wx.createAnimation 或 CSS Animation
+12. **Skyline CSS 限制** - Skyline 渲染引擎对 CSS 有严格限制：
+    - 禁止使用 `active:`、`focus:`、`disabled:`、`hover:` 等伪类变体，Skyline 只支持 `:first-child` 和 `:last-child`
+    - 禁止使用 `backdrop-blur-*`、`backdrop-opacity-*` 等 backdrop-filter 相关类
+    - 禁止使用 `filter: blur()` 做背景模糊光斑，Skyline 不渲染该属性；背景装饰改用纯色低透明度圆形
+    - 禁止使用 `grid`、`grid-cols-*`、`grid-rows-*` 等 grid 布局，应使用 `flex flex-wrap` 替代
+    - 伪元素必须使用双冒号 `::before`、`::after`，不能使用单冒号
+    - 禁止使用 `transform-style: preserve-3d` 和 `backface-visibility: hidden`，Skyline 不支持 CSS 3D 变换；卡片翻面效果必须用 `wx:if` 切换正反面实现
+    - 禁止使用 `position: fixed`，Skyline 不支持固定定位；底部导航栏等需要固定的元素应作为页面 flex 布局的一部分
+    - 禁止使用 `-webkit-background-clip: text` 和 `-webkit-text-fill-color: transparent`，Skyline 不支持文字裁切渐变效果，会退化为渐变色块覆盖文字
+    - 禁止使用 `text-decoration: underline` 等文字装饰属性，Skyline 不渲染；需要下划线效果时必须用真实的 `view` 元素模拟
+    - 禁止使用 `repeating-linear-gradient`，Skyline 不支持；需要重复线条时改用 `wx:for` 循环渲染多个 `view` 元素
+13. **Skyline 布局陷阱** - 以下布局模式在 Skyline 下表现异常，必须规避：
+    - `scroll-view` 在 flex 容器中设置 `flex:1` 不会自动撑开高度，结果为 0；需要用固定高度或改用普通 `view`
+    - `wx:for` 不支持直接传入数字（如 `wx:for="{{20}}"`），必须传入数组；用工具函数生成 `[0,1,2,...,n-1]` 数组
+    - 动态 class 中的三元表达式（如 `class="{{condition ? 'a' : 'b'}}"`）在 Skyline 下不可靠，必须用 `wx:if` / `wx:else` 分支渲染替代
+    - Tailwind 生成的部分 class（如 `gap-*`、`flex-1` 嵌套）在 Skyline 下偶发失效；关键布局属性（flex、gap、width、height、position）优先使用 inline style 确保稳定
+    - `flex-direction:column` + `justify-content:center` 的容器中，动态插入/移除子元素（如 `wx:if` 切换上下文）会导致其余子元素位置重排；如果某个元素必须保持位置不变，应使用 swiper 或绝对定位方案而非依赖 flex 居中
+14. **自定义 TabBar 限制** - Skyline 下自定义 TabBar 组件（`custom-tab-bar/`）的布局不受控，会脱离预期位置；建议放弃 `app.json` 中的 `tabBar.custom: true`，改为在每个页面底部内嵌导航栏组件，页面间用 `wx.navigateTo` 跳转
+15. **weapp-tailwindcss 插件** - vite 插件的正确导入名为 `UnifiedViteWeappTailwindcssPlugin`（注意 Vite 在前），不是 `UnifiedWeappTailwindcssVitePlugin`；安装后用 `node -e "const m = require('weapp-tailwindcss/vite'); console.log(Object.keys(m))"` 验证导出名
+16. **构建产物同步** - 修改小程序源码后必须执行 `npm run build` 重新构建，开发者工具加载的是 `dist/` 目录而非 `src/`；调试时优先检查 dist 是否为最新版本
+17. **环境变量格式** - `.env` 文件中键值对之间禁止有 Tab 或多余空格（如 `KEY=\tvalue`），pydantic-settings 不会自动 trim，会导致值被污染
+18. **后端重启生效** - 修改 `.env` 或 Python 源码后必须重启 uvicorn 进程才能生效；修改后应主动 kill 旧进程并重启
+19. **微信登录重试** - `wx.login` 返回的 code 有时效性且只能使用一次；前端登录逻辑必须支持重试（至少 2-3 次），每次重试都重新调用 `wx.login` 获取新 code
+21. **开发模式登录降级** - 后端必须提供 `dev_mode` 配置和 `/api/auth/dev-login` 接口；开发者工具中 `wx.login` 返回的 code 是模拟的，后端换 openid 会失败，需自动降级到开发模式登录（固定 openid 创建测试用户）；前端 login 服务应实现 fallback 链：先尝试正常登录 → 失败后调 dev-login
+22. **开发者工具缓存陷阱** - 微信开发者工具的「清缓存」按钮有时不彻底；调试登录流程时，应在 Console 中执行 `wx.clearStorageSync()` 确保 token 完全清除，再重新编译测试
+23. **真机与开发者工具行为一致** - 前端登录流程的 UI 和交互在真机和开发者工具中必须表现一致（都经过登录页、都需要用户操作），仅后端 token 获取路径不同（真机走微信 API，开发者工具走 dev-login）
+20. **包体积限制** - 微信小程序有严格的包大小限制：
+    - 主包不能超过 2MB
+    - 单个分包不能超过 2MB
+    - 总包大小不能超过 20MB
+    - 图片资源应使用 CDN 或云存储，禁止将大图片打包进小程序
+    - 第三方库需评估体积，优先选择轻量级方案
+
+## 后端规范 (FastAPI)
+
+1. **路由组织** - 按功能模块划分路由文件
+2. **数据模型** - 使用 Tortoise ORM 定义实体
+3. **业务逻辑** - 放在 services 层，保持路由层简洁
+4. **依赖注入** - 使用 FastAPI Depends 进行依赖注入
+5. **配置管理** - 使用 pydantic-settings 管理配置
+
+## 数据库技术栈
+
+1. **数据库** - PostgreSQL 5432 端口
+2. **ORM 框架** - Tortoise ORM + asyncpg (异步驱动)
+3. **迁移工具** - Aerich，配置在 pyproject.toml 的 [tool.aerich] 部分
+4. **时区设置** - 使用 UTC 时区 (use_tz=True, timezone="UTC")
+5. **实体定义** - 所有实体放在 app/entities/ 目录下
+6. **基类选择** - 根据业务需求选择 BaseEntity (UUID主键) 或 TypeIDEntity (TypeID主键)
+
+## 数据库设计规范
+
+1. **表命名** - 使用小写复数名词，多词用下划线分隔，如 `users`, `payment_orders`, `card_likes`
+2. **字段命名** - 使用小写蛇形命名法，如 `user_id`, `created_at`, `is_active`, `wechat_avatar_url`
+3. **主键字段** - 统一使用 `id` 作为主键名，类型为 UUID 或 TypeID
+   - UUID主键: 继承 BaseEntity，使用 `fields.UUIDField(pk=True, default=uuid4)`
+   - TypeID主键: 继承 TypeIDEntity，设置 `prefix` 类变量，如 `prefix = "usr"`
+4. **时间戳字段** - 所有实体必须包含 `created_at` 和 `updated_at`
+   - `created_at = fields.DatetimeField(auto_now_add=True)`
+   - `updated_at = fields.DatetimeField(auto_now=True)`
+5. **软删除** - 使用 `deleted_at` 字段实现软删除，值为 NULL 表示未删除，非 NULL 表示删除时间
+6. **外键命名** - 格式为 `表名_id`，如 `user_id`, `order_id`，使用 `fields.UUIDField(index=True)` 并添加索引
+7. **布尔字段** - 使用 `is_` 或 `has_` 前缀，如 `is_active`, `has_paid`
+8. **索引规范** - 外键字段、唯一字段、频繁查询字段必须加 `index=True`
+9. **字段类型选择**
+   - 短文本: `fields.CharField(max_length=N)`，如用户名、状态等
+   - 长文本: `fields.TextField()`，如简介、内容等  
+   - 整数: `fields.IntField()`，如金额（分）、积分等
+   - UUID: `fields.UUIDField()`，用于主键或外键
+   - 时间: `fields.DatetimeField()`，用于时间戳
+   - JSON: `fields.JSONField(default=dict)` 或 `default=list`，用于灵活数据结构
+10. **字段约束**
+    - 必填字段不加 `null=True`，可选字段加 `null=True`
+    - 唯一字段使用 `unique=True`，如 openid, phone, out_trade_no
+    - 默认值使用 `default` 参数，如 `default=0`, `default="pending"`, `default=dict`
+11. **迁移文件** - 使用 `aerich migrate` 生成迁移，`aerich upgrade` 应用迁移，迁移文件位于 migrations/ 目录
+12. **Meta 配置** - 每个实体必须在 Meta 中指定表名 `table = "表名"`
+
+## 快捷指令
+
+ls
+1. 回顾本次会话中到目前为止所有的纠错、返工、反复调整的经历
+2. 从中提取**通用性的、可复用的**最佳实践经验（不是具体业务细节，而是可以指导未来开发的规则）
+3. 检查现有 rules 文件（engineering-rules、ui-design-rules、interaction-design-rules、product-design-rules），避免重复
+4. 将新经验写入对应的 rules 文件中，保持与现有条目风格一致
+5. 简要告知用户新增/更新了哪些规则
+
+## 快捷指令
+
+pp
+1. 第1步，去除当前改动中的所有注释
+2. 第2步，检查当前的改动是否都符合本文件包含的所有规则的限制，每个规则都要检查是否适用
+3. 第3步，触发 lint 检查，检查涉及所有改动所在的所有文件，如果是 miniprogram 或者 dashboard, ios-app 要测试打包，
+4. 第4步，修复所有lint问题，创建一个新的 commit 上去，绝对不允许使用--no-verify选项跳过代码检查, commit name 要更细节一些，不能就是什么 lint refactor，之类的，需要根据所有的文件改动综述
+5. 提交
+
+## 快捷指令
+
+ppr
+1. 去除当前改动中的所有注释
+2. 检查当前的改动是否都符合本文件包含的所有规则的限制，每个规则都要检查是否适用
+3. 触发 lint 检查，检查涉及所有改动所在的所有文件，如果是 miniprogram 或者 dashboard, ios-app 要测试打包
+4. 修复所有 lint 问题，创建一个新的 commit，绝对不允许使用 --no-verify 选项跳过代码检查
+5. 创建新分支（基于改动内容命名，如 feature/xxx 或 fix/xxx），将改动移动到该分支
+6. 使用 `gh auth login` 确保已登录 GitHub CLI
+7. 使用 `gh pr create` 创建 PR，遵循 Google PR 规范，设置 squash 模式的压缩：
+   - **Title**: 使用 Conventional Commits 格式，如 `feat: 添加用户认证功能` 或 `fix: 修复登录页面崩溃问题`
+   - **Body**: 包含以下部分：
+     - `## Summary` - 用 1-3 个要点描述改动的目的和内容
+     - `## Test plan` - 列出测试清单，确保改动可验证

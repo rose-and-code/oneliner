@@ -1,0 +1,93 @@
+<view class="flex flex-col w-full bg-bg relative" style="height:100vh; overflow:hidden;">
+  <view class="absolute inset-0 pointer-events-none overflow-hidden">
+    <view class="absolute rounded-full" style="width:280px; height:280px; background:rgba(52,211,153,0.04); top:10%; right:-40px;"></view>
+    <view class="absolute rounded-full" style="width:320px; height:320px; background:rgba(240,160,80,0.03); bottom:10%; left:-60px;"></view>
+  </view>
+
+  <view style="padding-top:56px; padding-left:20px; padding-right:20px; position:relative; z-index:10;">
+    <view class="flex items-center" style="justify-content:space-between;">
+      <view
+        class="flex items-center"
+        style="padding:6px 12px; border-radius:16px; background:rgba(255,255,255,0.06); border:1px solid rgba(52,211,153,0.12);"
+        bindtap="goToIndex"
+      >
+        <text style="font-size:13px; font-weight:300; color:#9AADA2;">‹</text>
+        <text style="font-size:11px; color:#9AADA2; letter-spacing:0.05em; margin-left:4px;">返回</text>
+      </view>
+    </view>
+    <view wx:if="{{!empty && !loading && !needLogin}}" style="text-align:left; margin-top:16px;">
+      <text class="text-xs text-text-dim">共 {{bookmarks.length}} 条</text>
+    </view>
+  </view>
+
+  <scroll-view
+    scroll-y
+    type="list"
+    style="flex:1; position:relative; z-index:10; padding:0 20px;"
+  >
+    <view wx:if="{{needLogin}}" class="flex flex-col items-center justify-center" style="padding:80px 0;">
+      <text style="font-size:36px; margin-bottom:16px;">🔒</text>
+      <text class="text-text-dim text-sm" style="margin-bottom:16px;">登录后查看收藏</text>
+      <view
+        style="padding:10px 32px; border-radius:20px; background:linear-gradient(135deg,#34D399,#F0A050);"
+        bindtap="onTapLogin"
+      >
+        <text class="text-white text-sm font-medium">微信登录</text>
+      </view>
+    </view>
+
+    <view wx:elif="{{loading}}" class="flex items-center justify-center" style="padding:80px 0;">
+      <text class="text-text-dim text-sm">加载中...</text>
+    </view>
+
+    <view wx:elif="{{empty}}" class="flex flex-col items-center justify-center" style="padding:80px 0;">
+      <text style="font-size:36px; margin-bottom:16px;">📚</text>
+      <text class="text-text-dim text-sm" style="margin-bottom:8px;">还没有收藏</text>
+      <text class="text-text-faint text-xs">翻翻时点击 ☆ 收藏击中你的句子</text>
+    </view>
+
+    <view wx:else style="padding-bottom:32px;">
+      <view
+        wx:for="{{bookmarks}}"
+        wx:key="id"
+        style="margin-bottom:16px; border-radius:20px; padding:20px; background:rgba(255,255,255,0.035); border:1px solid rgba(52,211,153,0.08); position:relative; overflow:hidden;"
+        bindtap="onTapCard"
+        data-sentence-id="{{item.sentence_id}}"
+      >
+        <view style="position:absolute; top:0; left:20px; right:20px; height:1px; opacity:0.2; background:linear-gradient(90deg,transparent,#34D399,transparent);"></view>
+
+        <view
+          class="flex items-center justify-center"
+          style="position:absolute; right:12px; top:12px; width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.06); border:1px solid rgba(52,211,153,0.1);"
+          catchtap="onTapRemove"
+          data-index="{{index}}"
+        >
+          <text style="font-size:14px;">⭐</text>
+        </view>
+
+        <text style="font-size:15px; line-height:1.8; color:#E8F0EC; font-weight:300; padding-right:40px; display:block;">{{item.text}}</text>
+
+        <view class="flex items-center" style="gap:8px; margin-top:12px;">
+          <view style="width:12px; height:1px; background:#2E4A40;"></view>
+          <text class="text-xs tracking-wider text-text-dim">{{item.book_author}}</text>
+        </view>
+
+        <view style="margin-top:8px;">
+          <text class="text-xs text-text-faint">《{{item.book_title}}》· {{item.chapter}}</text>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view style="display:flex; align-items:center; justify-content:space-around; padding:8px 0 24px; position:relative; z-index:20; border-top:1px solid rgba(52,211,153,0.06);">
+    <view class="flex flex-col items-center" style="padding:4px 0;" bindtap="goToIndex">
+      <text style="font-size:16px;">📖</text>
+      <text class="text-xs text-text-dim" style="margin-top:2px;">翻翻</text>
+    </view>
+    <view class="flex flex-col items-center" style="padding:4px 0;">
+      <text style="font-size:16px;">⭐</text>
+      <text class="text-xs text-accent font-medium" style="margin-top:2px;">我的</text>
+    </view>
+  </view>
+
+</view>

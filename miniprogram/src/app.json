@@ -1,0 +1,25 @@
+{
+  "$schema": "https://vite.icebreaker.top/app.json",
+  "pages": [
+    "pages/index/index",
+    "pages/mine/mine",
+    "pages/login/login"
+  ],
+  "window": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#0A0F0E",
+    "backgroundColorTop": "#0A0F0E",
+    "backgroundColorBottom": "#0A0F0E"
+  },
+  "renderer": "skyline",
+  "rendererOptions": {
+    "skyline": {
+      "defaultDisplayBlock": true,
+      "defaultContentBox": true,
+      "disableABTest": true
+    }
+  },
+  "componentFramework": "glass-easel",
+  "lazyCodeLoading": "requiredComponents",
+  "sitemapLocation": "sitemap.json"
+}

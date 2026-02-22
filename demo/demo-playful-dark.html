@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>OneLiner — Playful Dark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    background: #060B0A;
+    font-family: -apple-system, "SF Pro Rounded", "SF Pro Text", "PingFang SC", sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .iphone-frame {
+    position: relative;
+    width: 390px;
+    height: 844px;
+    border-radius: 56px;
+    background: #0A0F0E;
+    box-shadow:
+      0 0 0 2px #1E2E2A,
+      0 0 0 5px #0A0F0E,
+      0 0 0 7px #1E2E2A,
+      0 40px 80px rgba(0,0,0,0.5),
+      0 15px 30px rgba(0,0,0,0.3);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .dynamic-island {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 126px;
+    height: 36px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 100;
+  }
+
+  .home-indicator {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 140px;
+    height: 5px;
+    background: rgba(220, 240, 230, 0.15);
+    border-radius: 3px;
+    z-index: 100;
+  }
+
+  .iphone-screen {
+    position: absolute;
+    inset: 0;
+    border-radius: 56px;
+    overflow: hidden;
+  }
+
+  :root {
+    --bg: #0A0F0E;
+    --bg-card: rgba(255, 255, 255, 0.035);
+    --bg-back: rgba(255, 255, 255, 0.025);
+    --text: #E8F0EC;
+    --text-secondary: #9AADA2;
+    --text-dim: #546E64;
+    --text-faint: #2E4A40;
+    --accent: #34D399;
+    --accent-warm: #F0A050;
+    --accent-muted: rgba(52, 211, 153, 0.14);
+    --accent-dim: rgba(52, 211, 153, 0.07);
+    --gradient: linear-gradient(135deg, #34D399, #F0A050);
+    --gradient-border: linear-gradient(135deg, rgba(52,211,153,0.10), rgba(240,160,80,0.08));
+    --gradient-border-active: linear-gradient(135deg, rgba(52,211,153,0.28), rgba(240,160,80,0.22));
+    --divider: rgba(52, 211, 153, 0.08);
+    --shadow-card: 0 6px 24px rgba(0,0,0,0.3), 0 0 40px rgba(52,211,153,0.06);
+    --radius: 20px;
+    --flip-duration: 0.65s;
+  }
+
+  #app {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: "Noto Sans SC", -apple-system, "SF Pro Rounded", "PingFang SC", sans-serif;
+    color: var(--text);
+    touch-action: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .bg-orbs {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+  }
+
+  .bg-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+  }
+
+  .bg-orb-1 {
+    width: 320px;
+    height: 320px;
+    background: rgba(52, 211, 153, 0.055);
+    top: -80px;
+    left: -50px;
+    animation: drift1 22s ease-in-out infinite alternate;
+  }
+
+  .bg-orb-2 {
+    width: 280px;
+    height: 280px;
+    background: rgba(240, 160, 80, 0.04);
+    top: 35%;
+    right: -70px;
+    animation: drift2 26s ease-in-out infinite alternate;
+  }
+
+  .bg-orb-3 {
+    width: 360px;
+    height: 360px;
+    background: rgba(52, 211, 153, 0.035);
+    bottom: -100px;
+    left: 25%;
+    animation: drift3 20s ease-in-out infinite alternate;
+  }
+
+  @keyframes drift1 {
+    0%   { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(35px, 25px) scale(1.08); }
+  }
+  @keyframes drift2 {
+    0%   { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(-25px, -35px) scale(1.05); }
+  }
+  @keyframes drift3 {
+    0%   { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(18px, -25px) scale(1.06); }
+  }
+
+  .top-bar {
+    flex-shrink: 0;
+    padding: 62px 24px 0;
+    text-align: center;
+    z-index: 20;
+    position: relative;
+  }
+
+  .top-bar .book-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2.5px;
+    color: var(--text-dim);
+  }
+
+  .top-bar .progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 10px;
+  }
+
+  .progress-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .progress-dot.active {
+    width: 22px;
+    border-radius: 3px;
+    background: var(--gradient);
+  }
+
+  .progress-dot.passed {
+    background: var(--text-dim);
+  }
+
+  .content-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 20px;
+    perspective: 1000px;
+    position: relative;
+    z-index: 10;
+  }
+
+  .card-wrapper {
+    width: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform var(--flip-duration) cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .card-wrapper.flipped { transform: rotateY(180deg); }
+
+  .card-face {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: var(--radius);
+    width: 100%;
+  }
+
+  .card-front {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: var(--shadow-card);
+    padding: 36px 24px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
+  }
+
+  .card-front::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius);
+    padding: 1px;
+    background: var(--gradient-border);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    transition: background 0.3s;
+  }
+
+  .card-front::after {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 24px;
+    right: 24px;
+    height: 2px;
+    background: var(--gradient);
+    opacity: 0.35;
+    border-radius: 0 0 2px 2px;
+  }
+
+  .card-front.pressing {
+    transform: scale(0.985);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  }
+
+  .card-front.pressing::before {
+    background: var(--gradient-border-active);
+  }
+
+  .passage {
+    text-align: center;
+    cursor: pointer;
+    font-size: 17px;
+    line-height: 2.1;
+    font-weight: 300;
+    letter-spacing: 0.3px;
+    padding: 4px 0;
+  }
+
+  .passage .ctx {
+    color: var(--text-dim);
+    font-size: 15px;
+    display: none;
+    transition: opacity 0.4s ease;
+    opacity: 0;
+  }
+
+  .passage.expanded .ctx {
+    display: inline;
+    opacity: 1;
+    animation: ctxFadeIn 0.5s ease forwards;
+  }
+
+  @keyframes ctxFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .passage .highlight {
+    color: var(--text);
+    font-size: 20px;
+    font-weight: 400;
+    text-shadow: 0 0 28px rgba(52, 211, 153, 0.15);
+    transition: font-size 0.4s cubic-bezier(0.4, 0, 0.2, 1), text-shadow 0.4s;
+  }
+
+  .passage.expanded .highlight {
+    font-size: 17px;
+    font-weight: 400;
+    color: var(--text);
+    text-shadow: none;
+  }
+
+  .passage:active .highlight {
+    color: var(--text-secondary);
+  }
+
+  .author-line {
+    margin-top: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: opacity 0.3s, margin-top 0.3s;
+  }
+
+  .author-line.dimmed { opacity: 0.4; margin-top: 16px; }
+
+  .author-dash {
+    width: 16px;
+    height: 1px;
+    background: var(--text-faint);
+  }
+
+  .author-name {
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+  }
+
+  .flip-row {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
+    text-align: center;
+  }
+
+  .flip-row.visible { max-height: 60px; opacity: 1; }
+
+  .btn-flip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 16px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    color: #fff;
+    background: var(--gradient);
+    border: none;
+    border-radius: 20px;
+    padding: 9px 20px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-flip:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 20px rgba(52, 211, 153, 0.25);
+  }
+
+  .btn-flip:active { transform: scale(0.95); }
+
+  .btn-flip-icon {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    transition: transform 0.3s;
+  }
+
+  .btn-flip:active .btn-flip-icon { transform: rotateY(180deg); }
+
+  .card-back {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    transform: rotateY(180deg);
+    background: var(--bg-back);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: var(--shadow-card);
+    padding: 32px 24px 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    overflow: hidden;
+  }
+
+  .card-back::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius);
+    padding: 1px;
+    background: var(--gradient-border);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .back-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    color: #fff;
+    background: var(--gradient);
+    padding: 5px 14px;
+    border-radius: 12px;
+    margin-bottom: 22px;
+  }
+
+  .back-chapter {
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+    text-align: center;
+  }
+
+  .back-explain {
+    font-size: 15px;
+    line-height: 2;
+    color: var(--text);
+    font-weight: 300;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .back-counter-wrap {
+    position: relative;
+    padding: 16px;
+    margin-top: 4px;
+    width: 100%;
+  }
+
+  .back-counter-wrap::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 20%; right: 20%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.2;
+  }
+
+  .back-counter {
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    text-align: center;
+    font-style: italic;
+  }
+
+  .back-hint {
+    margin-top: 20px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--text-faint);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .back-hint-arrow {
+    display: inline-block;
+    animation: hintBounce 2s ease-in-out infinite;
+  }
+
+  @keyframes hintBounce {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(-3px); }
+  }
+
+  .bottom-area {
+    flex-shrink: 0;
+    padding: 14px 24px 36px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    z-index: 20;
+    position: relative;
+  }
+
+  .book-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
+  }
+
+  .book-dot.active {
+    width: 20px;
+    border-radius: 3px;
+    background: var(--gradient);
+  }
+
+  .swipe-hint {
+    position: absolute;
+    bottom: 68px;
+    left: 0; right: 0;
+    text-align: center;
+    z-index: 30;
+    pointer-events: none;
+    opacity: 0;
+    animation: hintAppear 0.6s ease 1.5s forwards;
+  }
+
+  .swipe-hint.hidden { display: none; }
+
+  .swipe-hint-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(52, 211, 153, 0.1);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    padding: 10px 20px;
+    border-radius: 20px;
+  }
+
+  .swipe-hint-arrow {
+    display: inline-block;
+    animation: swipeArrow 1.8s ease-in-out infinite;
+  }
+
+  @keyframes swipeArrow {
+    0%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-6px); }
+    60% { transform: translateY(-6px); }
+  }
+
+  @keyframes hintAppear { to { opacity: 1; } }
+
+  .anim-fade-up    { animation: fadeUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .anim-fade-down  { animation: fadeDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .anim-slide-left { animation: slideLeft 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .anim-slide-right{ animation: slideRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+  @keyframes fadeUp    { from { opacity:0; transform:translateY(20px) rotate(1deg); } to { opacity:1; transform:translateY(0) rotate(0); } }
+  @keyframes fadeDown  { from { opacity:0; transform:translateY(-20px) rotate(-1deg);} to { opacity:1; transform:translateY(0) rotate(0); } }
+  @keyframes slideLeft { from { opacity:0; transform:translateX(30px) rotate(1deg); } to { opacity:1; transform:translateX(0) rotate(0); } }
+  @keyframes slideRight{ from { opacity:0; transform:translateX(-30px) rotate(-1deg);} to { opacity:1; transform:translateX(0) rotate(0); } }
+
+  .bounce-bottom { animation: bounceB 0.35s cubic-bezier(0.36, 0, 0.66, -0.56); }
+  .bounce-top    { animation: bounceT 0.35s cubic-bezier(0.36, 0, 0.66, -0.56); }
+  .bounce-left   { animation: bounceL 0.35s cubic-bezier(0.36, 0, 0.66, -0.56); }
+  .bounce-right  { animation: bounceR 0.35s cubic-bezier(0.36, 0, 0.66, -0.56); }
+
+  @keyframes bounceB { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(8px); } }
+  @keyframes bounceT { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-8px); } }
+  @keyframes bounceL { 0%,100%{ transform:translateX(0); } 50%{ transform:translateX(-8px); } }
+  @keyframes bounceR { 0%,100%{ transform:translateX(0); } 50%{ transform:translateX(8px); } }
+
+  @media (max-width: 430px) {
+    html, body { background: var(--bg); }
+    .iphone-frame {
+      width: 100%;
+      height: 100dvh;
+      height: 100%;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    .iphone-screen { border-radius: 0; }
+    .dynamic-island, .home-indicator { display: none; }
+    .top-bar { padding-top: calc(env(safe-area-inset-top, 20px) + 12px); }
+    .bottom-area { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); }
+  }
+</style>
+</head>
+<body>
+
+<div class="iphone-frame">
+  <div class="dynamic-island"></div>
+  <div class="home-indicator"></div>
+
+  <div class="iphone-screen">
+    <div id="app">
+      <div class="bg-orbs">
+        <div class="bg-orb bg-orb-1"></div>
+        <div class="bg-orb bg-orb-2"></div>
+        <div class="bg-orb bg-orb-3"></div>
+      </div>
+
+      <div class="top-bar">
+        <div class="book-title" id="bookTitle"></div>
+        <div class="progress" id="progress"></div>
+      </div>
+
+      <div class="content-area">
+        <div class="card-wrapper" id="cardWrapper">
+          <div class="card-face card-front" id="cardFront">
+            <div class="passage" id="passage">
+              <span class="ctx ctx-before" id="ctxBefore"></span>
+              <span class="highlight" id="highlightSentence"></span>
+              <span class="ctx ctx-after" id="ctxAfter"></span>
+            </div>
+            <div class="author-line" id="authorLine">
+              <span class="author-dash"></span>
+              <span class="author-name" id="authorName"></span>
+              <span class="author-dash"></span>
+            </div>
+            <div class="flip-row" id="flipRow">
+              <button class="btn-flip" id="btnFlip">
+                <svg class="btn-flip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><path d="M21 9V5a2 2 0 0 0-2-2h-4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/></svg>
+                翻一面
+              </button>
+            </div>
+          </div>
+
+          <div class="card-face card-back" id="cardBack">
+            <div class="back-label">延展</div>
+            <div class="back-chapter" id="backChapter"></div>
+            <div class="back-explain" id="backExplain"></div>
+            <div class="back-counter-wrap">
+              <div class="back-counter" id="backCounter"></div>
+            </div>
+            <div class="back-hint">
+              <span class="back-hint-arrow">←</span> 轻触翻回
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottom-area" id="bottomDots"></div>
+
+      <div class="swipe-hint" id="swipeHint">
+        <div class="swipe-hint-inner">
+          <span class="swipe-hint-arrow">↑</span>
+          上下滑动切换句子
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const books = [
+  {
+    title: "人类简史",
+    author: "尤瓦尔·赫拉利",
+    sentences: [
+      { text: "想象的秩序并非个人主观的想象，而是存在于千千万万人共同的想象之中。", ctxBefore: "人类之所以能大规模合作，靠的不是基因或本能，而是共同相信某些虚构的故事。从宗教到国家，从货币到法律——", ctxAfter: "这些「想象的秩序」让陌生人之间得以协作。它们并非谎言，而是一种集体信仰的力量。", chapter: "第二部分 · 农业革命 · 第六章「建造金字塔」", explain: "赫拉利指出，人类文明的基石不是客观事实，而是共同的虚构。这挑战了我们对「真实」的定义——如果所有人都相信，虚构就成了现实。", counterpoint: "但如果秩序只是想象，它就可以被重新想象。" },
+      { text: "农业革命是史上最大的骗局。", ctxBefore: "小麦并没有让人类过上好日子，反而是人类为了种小麦而改变了自己的生活方式。采集者的饮食更均衡，工作时间更短，生活更自由。", ctxAfter: "农业带来的是更多的人口、更多的劳动、更多的疾病，以及更深的阶级分化。", chapter: "第二部分 · 农业革命 · 第五章「史上最大的骗局」", explain: "赫拉利颠覆了「农业=进步」的叙事。所谓的进步，可能只是让更多人以更糟的方式活着。这迫使我们重新思考：什么才算真正的进步？", counterpoint: "但没有农业，就没有城市、文字和你正在读的这本书。" },
+      { text: "金钱是有史以来最普遍也最有效的互信系统。", ctxBefore: "不同文化的人可能不信同一个神，不服同一个王，但几乎所有人都相信金钱的价值。", ctxAfter: "一枚硬币之所以有价值，不是因为它的材质，而是因为所有人都愿意相信它有价值。金钱是人类发明的最成功的虚构故事。", chapter: "第二部分 · 农业革命 · 第十章「金钱的味道」", explain: "金钱的本质不是物质，而是信任。这揭示了一个深刻的悖论：最「务实」的东西，其实建立在最「虚幻」的基础上。", counterpoint: "信任也可以崩塌——每一次金融危机都在提醒我们这一点。" },
+      { text: "历史的铁则就是：事后看来无可避免的事，在当时看来总是毫不明显。", ctxBefore: "我们回顾历史时，总觉得一切理所当然。基督教必然会兴起，罗马必然会衰落。", ctxAfter: "但对于身处其中的人来说，未来充满了不确定性。历史不是必然的，它充满了偶然和岔路。", chapter: "第三部分 · 人类的融合统一 · 第十二章「宗教的法则」", explain: "赫拉利提醒我们警惕「后见之明」的陷阱。我们对过去的确定感，恰恰是对未来最危险的误导。", counterpoint: "但如果一切都是偶然，我们还能从历史中学到什么？" },
+      { text: "快乐并不在于任何客观条件，而在于客观条件和主观期望之间的差距。", ctxBefore: "中世纪的农民可能比现代的银行家更快乐，因为他的期望更低。现代社会给了我们更多的物质，但也给了我们更高的期望。", ctxAfter: "当期望的增长速度超过条件的改善速度，不满就会产生。", chapter: "第四部分 · 科学革命 · 第十九章「从此过着幸福快乐的日子」", explain: "这句话解构了「进步=幸福」的等式。如果幸福取决于期望差，那么不断追求更多反而可能让我们更不幸福。", counterpoint: "但降低期望不也是一种对现实的妥协吗？" },
+      { text: "我们拥有的力量比以往任何时候都大，但几乎不知道该拿这些力量怎么办。", ctxBefore: "人类已经可以改造基因、创造人工智能、甚至延长寿命。但我们对于「什么是好的生活」这个问题，并没有比古人更有答案。", ctxAfter: "技术赋予了我们神的力量，但我们仍然带着猿猴的欲望和恐惧。", chapter: "后记 ·「变成神的这种动物」", explain: "全书的收尾之问：人类正在获得改写生命规则的能力，但我们的智慧是否跟得上我们的力量？这是对整个物种的终极拷问。", counterpoint: "也许答案不在于「知道怎么办」，而在于学会克制。" }
+    ]
+  },
+  {
+    title: "沉思录",
+    author: "马可·奥勒留",
+    sentences: [
+      { text: "你所拥有的对事物的看法，而非事物本身，在困扰着你。", ctxBefore: "外在的事件无法真正伤害我们的内心，除非我们允许它这样做。", ctxAfter: "一个人的痛苦不来自发生了什么，而来自他如何看待发生的事。改变判断，痛苦就会消失。", chapter: "卷四 · 第三节", explain: "这是斯多葛哲学的核心：区分「可控」与「不可控」。我们无法控制世界，但可以控制自己的判断。这不是逃避，而是一种极致的内在自由。", counterpoint: "但有些痛苦如此真实，仅靠改变看法真的够吗？" },
+      { text: "不要像你还有一万年可活那样行事。死亡就悬在你头上。趁你还活着，趁你还能，成为一个好人。", ctxBefore: "时间是最稀缺的资源，而我们却挥霍它，仿佛它取之不尽。", ctxAfter: "奥勒留提醒自己：每一天都可能是最后一天。这不是为了制造焦虑，而是为了唤起行动的紧迫感。", chapter: "卷四 · 第十七节", explain: "这不是心灵鸡汤式的「活在当下」，而是一位罗马皇帝在战场上写给自己的备忘录。死亡不是恐吓，而是衡量行动优先级的标尺。", counterpoint: "但如果总想着死亡，我们还能享受当下吗？" },
+      { text: "宇宙是变化的，人生是判断的。", ctxBefore: "万物都在流转之中，没有什么是永恒不变的。既然外在世界不断变化，唯一属于我们的就是此刻的判断力。", ctxAfter: "把注意力从无法控制的外部世界收回，专注于自己能做出的每一个选择。", chapter: "卷四 · 第三节", explain: "八个字浓缩了斯多葛哲学的全部：世界是流动的，而你唯一的锚点是自己的理性判断。", counterpoint: "但判断本身也会被情绪和偏见扭曲。" },
+      { text: "你随时可以退隐到自己的内心。没有任何地方比自己的灵魂更安静、更无忧。", ctxBefore: "奥勒留并非在说逃避现实。作为罗马帝国的统治者，他每天面对战争、瘟疫和政治阴谋。", ctxAfter: "他说的「退隐」是一种精神练习：在喧嚣中找到内心的静处，然后带着这份宁静重新面对世界。", chapter: "卷四 · 第三节", explain: "一个掌管帝国的人，却说最好的避难所在自己心里。这不是软弱，而是一种经过战火检验的内在力量。", counterpoint: "但内心的平静是否只是特权者的奢侈？" },
+      { text: "阻碍行动的东西，反而推进了行动。挡在路上的，就成了路。", ctxBefore: "每一个障碍都包含着前进的机会。被拒绝了？那就学会坚韧。", ctxAfter: "失败了？那就获得了经验。斯多葛主义不是教你忍受痛苦，而是教你把痛苦转化为力量。", chapter: "卷五 · 第二十节", explain: "这可能是《沉思录》中最具行动力的一句话。它不是说障碍不存在，而是说障碍本身就是成长的材料。", counterpoint: "但有些障碍确实会摧毁人，而不是成就人。" }
+    ]
+  }
+];
+
+let currentBook = 0;
+let currentSentence = 0;
+let contextOpen = false;
+let isFlipped = false;
+let hintDismissed = false;
+
+const $ = (id) => document.getElementById(id);
+const el = {
+  bookTitle: $("bookTitle"), progress: $("progress"),
+  cardWrapper: $("cardWrapper"), cardFront: $("cardFront"),
+  passage: $("passage"),
+  ctxBefore: $("ctxBefore"), ctxAfter: $("ctxAfter"),
+  highlight: $("highlightSentence"),
+  authorLine: $("authorLine"), authorName: $("authorName"),
+  flipRow: $("flipRow"),
+  btnFlip: $("btnFlip"), cardBack: $("cardBack"),
+  backChapter: $("backChapter"), backExplain: $("backExplain"),
+  backCounter: $("backCounter"), bottomDots: $("bottomDots"),
+  swipeHint: $("swipeHint"),
+};
+
+function render(animClass) {
+  const book = books[currentBook];
+  const s = book.sentences[currentSentence];
+  el.bookTitle.textContent = book.title;
+  el.highlight.textContent = s.text;
+  el.authorName.textContent = book.author;
+  el.ctxBefore.textContent = s.ctxBefore;
+  el.ctxAfter.textContent = s.ctxAfter;
+  el.backChapter.textContent = s.chapter;
+  el.backExplain.textContent = s.explain;
+  el.backCounter.textContent = `「${s.counterpoint}」`;
+  closeContext(); closeFlip(); renderProgress(); renderBookDots();
+  if (animClass) {
+    el.cardFront.classList.add(animClass);
+    el.cardFront.addEventListener("animationend", () => el.cardFront.classList.remove(animClass), { once: true });
+  }
+}
+
+function renderProgress() {
+  const book = books[currentBook];
+  el.progress.innerHTML = "";
+  for (let i = 0; i < book.sentences.length; i++) {
+    const d = document.createElement("div");
+    d.className = "progress-dot";
+    if (i === currentSentence) d.classList.add("active");
+    else if (i < currentSentence) d.classList.add("passed");
+    el.progress.appendChild(d);
+  }
+}
+
+function renderBookDots() {
+  el.bottomDots.innerHTML = "";
+  books.forEach((_, i) => {
+    const d = document.createElement("div");
+    d.className = "book-dot" + (i === currentBook ? " active" : "");
+    el.bottomDots.appendChild(d);
+  });
+}
+
+function openContext() {
+  contextOpen = true;
+  el.passage.classList.add("expanded");
+  el.authorLine.classList.add("dimmed");
+  el.flipRow.classList.add("visible");
+}
+
+function closeContext() {
+  contextOpen = false;
+  el.passage.classList.remove("expanded");
+  el.authorLine.classList.remove("dimmed");
+  el.flipRow.classList.remove("visible");
+}
+
+function openFlip() { isFlipped = true; el.cardWrapper.classList.add("flipped"); }
+function closeFlip() { isFlipped = false; el.cardWrapper.classList.remove("flipped"); }
+
+function nextSentence() {
+  dismissHint();
+  const book = books[currentBook];
+  if (currentSentence < book.sentences.length - 1) { currentSentence++; render("anim-fade-up"); }
+  else edgeBounce("bounce-bottom");
+}
+function prevSentence() {
+  dismissHint();
+  if (currentSentence > 0) { currentSentence--; render("anim-fade-down"); }
+  else edgeBounce("bounce-top");
+}
+function nextBook() {
+  dismissHint();
+  if (currentBook < books.length - 1) { currentBook++; currentSentence = 0; render("anim-slide-left"); }
+  else edgeBounce("bounce-left");
+}
+function prevBook() {
+  dismissHint();
+  if (currentBook > 0) { currentBook--; currentSentence = 0; render("anim-slide-right"); }
+  else edgeBounce("bounce-right");
+}
+
+function edgeBounce(cls) {
+  el.cardFront.classList.add(cls);
+  el.cardFront.addEventListener("animationend", () => el.cardFront.classList.remove(cls), { once: true });
+}
+
+function dismissHint() {
+  if (!hintDismissed) { hintDismissed = true; el.swipeHint.classList.add("hidden"); }
+}
+
+let pointerStartX = 0, pointerStartY = 0, pointerStartTime = 0, isPressing = false, didSwipe = false;
+
+function onPointerDown(x, y) {
+  pointerStartX = x; pointerStartY = y; pointerStartTime = Date.now(); didSwipe = false;
+  if (!isFlipped) { isPressing = true; requestAnimationFrame(() => { if (isPressing) el.cardFront.classList.add("pressing"); }); }
+}
+
+function onPointerMove() {
+  if (isPressing) { isPressing = false; el.cardFront.classList.remove("pressing"); }
+}
+
+function onPointerUp(x, y) {
+  isPressing = false; el.cardFront.classList.remove("pressing");
+  const dx = x - pointerStartX, dy = y - pointerStartY, dt = Date.now() - pointerStartTime;
+  if (Math.abs(dx) < 12 && Math.abs(dy) < 12 && dt < 300) { didSwipe = false; return; }
+  if (isFlipped) return;
+  didSwipe = true;
+  const absDx = Math.abs(dx), absDy = Math.abs(dy), min = 36;
+  if (absDy > absDx && absDy > min) { if (contextOpen) { closeContext(); return; } dy < 0 ? nextSentence() : prevSentence(); }
+  else if (absDx > absDy && absDx > min) { if (contextOpen) { closeContext(); return; } dx < 0 ? nextBook() : prevBook(); }
+}
+
+document.addEventListener("touchstart", (e) => onPointerDown(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+document.addEventListener("touchmove", onPointerMove, { passive: true });
+document.addEventListener("touchend", (e) => onPointerUp(e.changedTouches[0].clientX, e.changedTouches[0].clientY), { passive: true });
+document.addEventListener("mousedown", (e) => onPointerDown(e.clientX, e.clientY));
+document.addEventListener("mousemove", (e) => { if (e.buttons) onPointerMove(); });
+document.addEventListener("mouseup", (e) => onPointerUp(e.clientX, e.clientY));
+
+el.passage.addEventListener("click", (e) => { e.stopPropagation(); if (isFlipped || didSwipe) return; contextOpen ? closeContext() : openContext(); });
+el.btnFlip.addEventListener("click", (e) => { e.stopPropagation(); openFlip(); });
+el.cardBack.addEventListener("click", () => { if (isFlipped) { closeFlip(); setTimeout(closeContext, 80); } });
+
+render();
+</script>
+</body>
+</html>
