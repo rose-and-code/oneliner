@@ -18,6 +18,11 @@ miniprogram/vite.config.ts.timestamp-*.mjs
 *.swp
 *.swo
 
+# Demo & docs
+demo/
+demo-*.html
+doc/
+
 # Root level stale config
 project.config.json
 project.private.config.json

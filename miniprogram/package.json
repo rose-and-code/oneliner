@@ -1,20 +1,9 @@
 {
-  "name": "weapp-vite-template",
+  "name": "oneliner-miniprogram",
   "type": "module",
-  "version": "1.0.3",
+  "version": "0.1.0",
   "private": true,
-  "description": "原生微信小程序 weapp-vite 模板",
-  "author": "ice breaker <1324318532@qq.com>",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/weapp-vite/weapp-vite.git",
-    "directory": "templates/weapp-vite-template"
-  },
-  "bugs": {
-    "url": "https://github.com/weapp-vite/weapp-vite/issues"
-  },
-  "keywords": [],
+  "description": "OneLiner 微信小程序",
   "scripts": {
     "dev": "weapp-vite dev",
     "dev:open": "weapp-vite dev -o",

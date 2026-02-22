@@ -51,7 +51,6 @@
     "src/**/*.vue",
     "src/**/*.json",
     "src/**/*.d.ts",
-    "types/**/*.d.ts",
-    "env.d.ts"
+    "types/**/*.d.ts"
   ]
 }
