@@ -11,4 +11,7 @@ dist/
 build/
 .ruff_cache/
 node_modules/
+demo/
+doc/
+project.config.json
 project.private.config.json
