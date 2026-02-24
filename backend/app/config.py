@@ -1,4 +1,8 @@
+import os
+
 from pydantic_settings import BaseSettings
+
+ENV = os.getenv("ENV", "dev")
 
 
 class Settings(BaseSettings):
@@ -8,7 +12,7 @@ class Settings(BaseSettings):
     wechat_appid: str = ""
     wechat_secret: str = ""
 
-    model_config = {"env_file": ".env.dev", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": f".env.{ENV}", "env_file_encoding": "utf-8"}
 
 
 settings = Settings()

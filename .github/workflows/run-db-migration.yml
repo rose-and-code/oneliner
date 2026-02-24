@@ -1,0 +1,52 @@
+name: 运行数据库迁移
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '环境'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+
+jobs:
+  migrate:
+    name: 执行数据库迁移
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装 uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: 安装依赖
+        working-directory: ./backend
+        run: uv sync
+
+      - name: 加载环境变量
+        working-directory: ./backend
+        run: |
+          set -a
+          source .env.${{ inputs.environment }}
+          set +a
+          echo "DATABASE_HOST=$DATABASE_HOST" >> $GITHUB_ENV
+          echo "DATABASE_PORT=$DATABASE_PORT" >> $GITHUB_ENV
+          echo "DATABASE_USER=$DATABASE_USER" >> $GITHUB_ENV
+          echo "DATABASE_NAME=$DATABASE_NAME" >> $GITHUB_ENV
+
+      - name: 运行数据库迁移
+        working-directory: ./backend
+        env:
+          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+        run: uv run aerich upgrade

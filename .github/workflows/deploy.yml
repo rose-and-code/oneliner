@@ -1,0 +1,119 @@
+name: Deploy Backend to One2X Workbench-CN
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+  workflow_dispatch:
+
+env:
+  SYNC_REGISTRY: workbench-cn-sync-ap-southeast-1.cr.volces.com
+  CR_REGISTRY: workbench-cn-cn-beijing.cr.volces.com
+  CR_NAMESPACE: workbench-cn-app
+  CR_REPOSITORY: ${{ github.event.repository.name }}
+  GITOPS_REPO: one2x-ai/one2x-workbench-cn
+  ENVIRONMENT: workbench-cn
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set image tag
+        id: set-tag
+        run: |
+          TAG="sha-$(echo ${{ github.sha }} | cut -c1-7)"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "full_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Login to Volcengine CR (海外 Sync)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.SYNC_REGISTRY }}
+          username: ${{ secrets.VOLCENGINE_CR_USERNAME }}
+          password: ${{ secrets.VOLCENGINE_CR_PASSWORD }}
+
+      - name: Build and push to 海外 Sync 仓库
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.SYNC_REGISTRY }}/${{ env.CR_NAMESPACE }}/${{ env.CR_REPOSITORY }}:${{ steps.set-tag.outputs.tag }}
+            ${{ env.SYNC_REGISTRY }}/${{ env.CR_NAMESPACE }}/${{ env.CR_REPOSITORY }}:latest
+          cache-from: |
+            type=gha,scope=${{ github.ref_name }}
+            type=gha,scope=main
+          cache-to: type=gha,mode=max,scope=${{ github.ref_name }}
+          provenance: false
+          sbom: false
+
+      - name: Login to Volcengine CR (国内)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.CR_REGISTRY }}
+          username: ${{ secrets.VOLCENGINE_CR_USERNAME }}
+          password: ${{ secrets.VOLCENGINE_CR_PASSWORD }}
+
+      - name: 等待镜像同步到国内仓库
+        run: |
+          echo "等待镜像同步到目标仓库..."
+          TARGET_IMAGE="${{ env.CR_REGISTRY }}/${{ env.CR_NAMESPACE }}/${{ env.CR_REPOSITORY }}:${{ steps.set-tag.outputs.tag }}"
+          MAX_ATTEMPTS=30
+          SLEEP_INTERVAL=10
+
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            echo "第 $i 次检查镜像: $TARGET_IMAGE"
+
+            if docker manifest inspect $TARGET_IMAGE > /dev/null 2>&1; then
+              echo "✅ 镜像同步成功！"
+              exit 0
+            fi
+
+            if [ $i -eq $MAX_ATTEMPTS ]; then
+              echo "❌ 镜像同步失败：超过最大重试次数 ($MAX_ATTEMPTS)"
+              exit 1
+            fi
+
+            echo "镜像尚未同步，等待 ${SLEEP_INTERVAL}s 后重试..."
+            sleep $SLEEP_INTERVAL
+          done
+
+      - name: Trigger GitOps deployment
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.ONE2X_GITOPS_PAT }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/${{ env.GITOPS_REPO }}/dispatches \
+            -d '{
+              "event_type": "update-image",
+              "client_payload": {
+                "service": "${{ env.CR_REPOSITORY }}",
+                "environment": "${{ env.ENVIRONMENT }}",
+                "image_tag": "${{ steps.set-tag.outputs.tag }}",
+                "full_sha": "${{ github.sha }}"
+              }
+            }'
+
+      - name: Deployment summary
+        run: |
+          echo "## 🚀 Backend Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Service**: ${{ env.CR_REPOSITORY }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag**: ${{ steps.set-tag.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ env.ENVIRONMENT }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Image pushed to 海外 Sync 仓库" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Image synced to 国内仓库" >> $GITHUB_STEP_SUMMARY
+          echo "🔄 GitOps update triggered - ArgoCD will auto-deploy" >> $GITHUB_STEP_SUMMARY

@@ -5,6 +5,7 @@ __pycache__/
 .env.*
 !.env.dev
 !.env.stage
+!.env.release
 .DS_Store
 .venv/
 *.egg-info/
