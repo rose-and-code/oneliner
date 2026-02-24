@@ -67,9 +67,6 @@ alwaysApply: true
 16. **构建产物同步** - 修改小程序源码后必须执行 `npm run build` 重新构建，开发者工具加载的是 `dist/` 目录而非 `src/`；调试时优先检查 dist 是否为最新版本
 17. **环境变量格式** - `.env` 文件中键值对之间禁止有 Tab 或多余空格（如 `KEY=\tvalue`），pydantic-settings 不会自动 trim，会导致值被污染
 18. **后端重启生效** - 修改 `.env` 或 Python 源码后必须重启 uvicorn 进程才能生效；修改后应主动 kill 旧进程并重启
-19. **微信登录重试** - `wx.login` 返回的 code 有时效性且只能使用一次；前端登录逻辑必须支持重试（至少 2-3 次），每次重试都重新调用 `wx.login` 获取新 code
-21. **开发模式登录降级** - 后端必须提供 `dev_mode` 配置和 `/api/auth/dev-login` 接口；开发者工具中 `wx.login` 返回的 code 是模拟的，后端换 openid 会失败，需自动降级到开发模式登录（固定 openid 创建测试用户）；前端 login 服务应实现 fallback 链：先尝试正常登录 → 失败后调 dev-login
-22. **开发者工具缓存陷阱** - 微信开发者工具的「清缓存」按钮有时不彻底；调试登录流程时，应在 Console 中执行 `wx.clearStorageSync()` 确保 token 完全清除，再重新编译测试
 23. **真机与开发者工具行为一致** - 前端登录流程的 UI 和交互在真机和开发者工具中必须表现一致（都经过登录页、都需要用户操作），仅后端 token 获取路径不同（真机走微信 API，开发者工具走 dev-login）
 20. **包体积限制** - 微信小程序有严格的包大小限制：
     - 主包不能超过 2MB
@@ -95,33 +92,6 @@ alwaysApply: true
 5. **实体定义** - 所有实体放在 app/entities/ 目录下
 6. **基类选择** - 根据业务需求选择 BaseEntity (UUID主键) 或 TypeIDEntity (TypeID主键)
 
-## 数据库设计规范
-
-1. **表命名** - 使用小写复数名词，多词用下划线分隔，如 `users`, `payment_orders`, `card_likes`
-2. **字段命名** - 使用小写蛇形命名法，如 `user_id`, `created_at`, `is_active`, `wechat_avatar_url`
-3. **主键字段** - 统一使用 `id` 作为主键名，类型为 UUID 或 TypeID
-   - UUID主键: 继承 BaseEntity，使用 `fields.UUIDField(pk=True, default=uuid4)`
-   - TypeID主键: 继承 TypeIDEntity，设置 `prefix` 类变量，如 `prefix = "usr"`
-4. **时间戳字段** - 所有实体必须包含 `created_at` 和 `updated_at`
-   - `created_at = fields.DatetimeField(auto_now_add=True)`
-   - `updated_at = fields.DatetimeField(auto_now=True)`
-5. **软删除** - 使用 `deleted_at` 字段实现软删除，值为 NULL 表示未删除，非 NULL 表示删除时间
-6. **外键命名** - 格式为 `表名_id`，如 `user_id`, `order_id`，使用 `fields.UUIDField(index=True)` 并添加索引
-7. **布尔字段** - 使用 `is_` 或 `has_` 前缀，如 `is_active`, `has_paid`
-8. **索引规范** - 外键字段、唯一字段、频繁查询字段必须加 `index=True`
-9. **字段类型选择**
-   - 短文本: `fields.CharField(max_length=N)`，如用户名、状态等
-   - 长文本: `fields.TextField()`，如简介、内容等  
-   - 整数: `fields.IntField()`，如金额（分）、积分等
-   - UUID: `fields.UUIDField()`，用于主键或外键
-   - 时间: `fields.DatetimeField()`，用于时间戳
-   - JSON: `fields.JSONField(default=dict)` 或 `default=list`，用于灵活数据结构
-10. **字段约束**
-    - 必填字段不加 `null=True`，可选字段加 `null=True`
-    - 唯一字段使用 `unique=True`，如 openid, phone, out_trade_no
-    - 默认值使用 `default` 参数，如 `default=0`, `default="pending"`, `default=dict`
-11. **迁移文件** - 使用 `aerich migrate` 生成迁移，`aerich upgrade` 应用迁移，迁移文件位于 migrations/ 目录
-12. **Meta 配置** - 每个实体必须在 Meta 中指定表名 `table = "表名"`
 
 ## 快捷指令
 
