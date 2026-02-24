@@ -1,7 +1,10 @@
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends
+from fastapi import HTTPException
+from fastapi import status
+from fastapi.security import HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer
 
 from app.entities.user import User
 from app.utils.jwt import decode_token
@@ -10,14 +13,20 @@ bearer_scheme = HTTPBearer()
 optional_bearer_scheme = HTTPBearer(auto_error=False)
 
 
-async def current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> User:
+async def current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> User:
     """必须登录的依赖。"""
     user_id = decode_token(credentials.credentials)
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的 token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的 token"
+        )
     user = await User.filter(id=UUID(user_id)).first()
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在"
+        )
     return user
 
 

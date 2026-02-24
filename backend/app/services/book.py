@@ -3,13 +3,11 @@ import json
 from pathlib import Path
 from uuid import UUID
 
-from app.types.schemas import (
-    BookResponse,
-    BookWithSentencesResponse,
-    PaginatedResponse,
-    RelatedQuote,
-    SentenceResponse,
-)
+from app.types.schemas import BookResponse
+from app.types.schemas import BookWithSentencesResponse
+from app.types.schemas import PaginatedResponse
+from app.types.schemas import RelatedQuote
+from app.types.schemas import SentenceResponse
 
 DATA_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "books.json"
 
@@ -26,7 +24,7 @@ def _stable_uuid(namespace: str, key: str) -> UUID:
 def load_books():
     """启动时加载 JSON 数据到内存。"""
     global _books, _sentence_index
-    with open(DATA_PATH, encoding="utf-8") as f:
+    with Path(DATA_PATH).open(encoding="utf-8") as f:
         raw = json.load(f)
 
     _books = []
@@ -78,8 +76,12 @@ def get_all_books_with_sentences(
                     ai_explanation=s.get("ai_explanation", ""),
                     counter_quote=s.get("counter_quote", ""),
                     counter_source=s.get("counter_source", ""),
-                    similar_quotes=[RelatedQuote(**q) for q in s.get("similar_quotes", [])],
-                    opposite_quotes=[RelatedQuote(**q) for q in s.get("opposite_quotes", [])],
+                    similar_quotes=[
+                        RelatedQuote(**q) for q in s.get("similar_quotes", [])
+                    ],
+                    opposite_quotes=[
+                        RelatedQuote(**q) for q in s.get("opposite_quotes", [])
+                    ],
                     sort_order=s["sort_order"],
                     is_favorited=str(s["id"]) in favorited,
                 )

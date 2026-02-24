@@ -1,8 +1,10 @@
 from datetime import datetime
-from typing import Generic, TypeVar
+from typing import Generic
+from typing import TypeVar
 from uuid import UUID
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
+from pydantic import field_validator
 
 T = TypeVar("T")
 

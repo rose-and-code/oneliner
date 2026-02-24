@@ -1,11 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import HTTPException
 
 from app.entities.user import User
 from app.services.auth import wechat_login
-from app.types.schemas import TokenResponse, UpdateProfileRequest, UserResponse, WechatLoginRequest
+from app.types.schemas import TokenResponse
+from app.types.schemas import UpdateProfileRequest
+from app.types.schemas import UserResponse
+from app.types.schemas import WechatLoginRequest
 from app.utils.deps import current_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+CurrentUser = Annotated[User, Depends(current_user)]
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -18,12 +27,12 @@ async def login(req: WechatLoginRequest):
 
 
 @router.get("/me", response_model=UserResponse)
-async def me(user: User = Depends(current_user)):
+async def me(user: CurrentUser):
     return UserResponse(id=user.id, nickname=user.nickname, avatar_url=user.avatar_url)
 
 
 @router.post("/me/update", response_model=UserResponse)
-async def update_me(req: UpdateProfileRequest, user: User = Depends(current_user)):
+async def update_me(req: UpdateProfileRequest, user: CurrentUser):
     if req.nickname is not None:
         user.nickname = req.nickname
     if req.avatar_url is not None:
