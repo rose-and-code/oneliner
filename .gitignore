@@ -3,7 +3,8 @@ __pycache__/
 *.pyo
 .env
 .env.*
-!.env.example
+!.env.dev
+!.env.stage
 .DS_Store
 .venv/
 *.egg-info/
