@@ -9,7 +9,7 @@ dependencies = [
     "aerich",
     "pydantic-settings",
     "pyjwt",
-    "httpx",
+    "aiohttp",
     "uvicorn",
 ]
 
@@ -17,3 +17,14 @@ dependencies = [
 tortoise_orm = "app.config.TORTOISE_ORM"
 location = "./migrations"
 src_folder = "."
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM"]
+ignore = ["B008"]
+
+[tool.ruff.format]
+quote-style = "double"

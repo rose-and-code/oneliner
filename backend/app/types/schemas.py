@@ -1,6 +1,18 @@
+from datetime import datetime
+from typing import Generic, TypeVar
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+T = TypeVar("T")
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: list[T]
+    total: int
+    page: int
+    page_size: int
+    has_more: bool
 
 
 class WechatLoginRequest(BaseModel):
@@ -9,38 +21,45 @@ class WechatLoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     token: str
-    user_id: str
+    user_id: UUID
 
 
 class UserResponse(BaseModel):
-    id: str
+    id: UUID
     nickname: str
     avatar_url: str
 
 
 class UpdateProfileRequest(BaseModel):
-    nickname: str
-    avatar_url: str
+    nickname: str | None = None
+    avatar_url: str | None = None
 
-
-class BookResponse(BaseModel):
-    id: str
-    title: str
-    author: str
-    sentence_count: int
-    sort_order: int
+    @field_validator("nickname")
+    @classmethod
+    def validate_nickname(cls, v: str | None) -> str | None:
+        if v is not None and (len(v.strip()) == 0 or len(v) > 64):
+            raise ValueError("昵称长度 1-64 字符")
+        return v
 
 
 class RelatedQuote(BaseModel):
     text: str
     book_title: str
     book_author: str
-    sentence_id: str | None = None
+    sentence_id: UUID | None = None
+
+
+class BookResponse(BaseModel):
+    id: UUID
+    title: str
+    author: str
+    sentence_count: int
+    sort_order: int
 
 
 class SentenceResponse(BaseModel):
-    id: str
-    book_id: str
+    id: UUID
+    book_id: UUID
     text: str
     context_before: str
     context_after: str
@@ -51,7 +70,7 @@ class SentenceResponse(BaseModel):
     similar_quotes: list[RelatedQuote] = []
     opposite_quotes: list[RelatedQuote] = []
     sort_order: int
-    is_bookmarked: bool = False
+    is_favorited: bool = False
 
 
 class BookWithSentencesResponse(BaseModel):
@@ -59,23 +78,15 @@ class BookWithSentencesResponse(BaseModel):
     sentences: list[SentenceResponse]
 
 
-class BookmarkToggleRequest(BaseModel):
+class FavoriteToggleRequest(BaseModel):
     sentence_id: UUID
 
 
-class BookmarkResponse(BaseModel):
-    is_bookmarked: bool
+class FavoriteResponse(BaseModel):
+    is_favorited: bool
 
 
-class BookmarkListItem(BaseModel):
-    id: str
-    sentence_id: str
-    text: str
-    context_before: str
-    context_after: str
-    book_title: str
-    book_author: str
-    chapter: str
-    similar_quotes: list[RelatedQuote] = []
-    opposite_quotes: list[RelatedQuote] = []
-    created_at: str
+class FavoriteListItem(BaseModel):
+    id: UUID
+    sentence_id: UUID
+    created_at: datetime

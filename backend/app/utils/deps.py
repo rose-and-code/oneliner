@@ -7,10 +7,11 @@ from app.entities.user import User
 from app.utils.jwt import decode_token
 
 bearer_scheme = HTTPBearer()
+optional_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> User:
-    """必须登录的依赖"""
+    """必须登录的依赖。"""
     user_id = decode_token(credentials.credentials)
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效的 token")
@@ -20,8 +21,10 @@ async def current_user(credentials: HTTPAuthorizationCredentials = Depends(beare
     return user
 
 
-async def optional_user(credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False))) -> User | None:
-    """可选登录的依赖"""
+async def optional_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_bearer_scheme),
+) -> User | None:
+    """可选登录的依赖。"""
     if not credentials:
         return None
     user_id = decode_token(credentials.credentials)

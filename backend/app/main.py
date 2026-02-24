@@ -6,13 +6,15 @@ from tortoise.contrib.fastapi import RegisterTortoise
 
 from app.config import TORTOISE_ORM
 from app.routes.auth import router as auth_router
-from app.routes.bookmarks import router as bookmarks_router
-from app.routes.sentences import router as sentences_router
+from app.routes.books import router as books_router
+from app.routes.favorites import router as favorites_router
+from app.services.book import load_books
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with RegisterTortoise(app, config=TORTOISE_ORM, generate_schemas=True):
+    load_books()
+    async with RegisterTortoise(app, config=TORTOISE_ORM, generate_schemas=False):
         yield
 
 
@@ -27,5 +29,11 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
-app.include_router(sentences_router)
-app.include_router(bookmarks_router)
+app.include_router(books_router)
+app.include_router(favorites_router)
+
+
+@app.get("/health")
+async def health():
+    """健康检查端点。"""
+    return {"status": "ok"}

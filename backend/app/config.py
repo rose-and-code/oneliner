@@ -2,12 +2,11 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    database_url: str = "postgres://rosewei@localhost:5432/oneliner"
-    jwt_secret: str = "dev-secret-change-in-production"
+    database_url: str
+    jwt_secret: str
     jwt_expire_days: int = 7
     wechat_appid: str = ""
     wechat_secret: str = ""
-    dev_mode: bool = True
 
     model_config = {"env_file": ".env.dev", "env_file_encoding": "utf-8"}
 
@@ -18,7 +17,7 @@ TORTOISE_ORM = {
     "connections": {"default": settings.database_url},
     "apps": {
         "models": {
-            "models": ["app.entities.user", "app.entities.book", "app.entities.sentence", "app.entities.bookmark", "aerich.models"],
+            "models": ["app.entities.user", "app.entities.favorite", "aerich.models"],
             "default_connection": "default",
         }
     },

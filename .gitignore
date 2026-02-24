@@ -1,29 +1,13 @@
-.DS_Store
-*.pyc
 __pycache__/
-
-# Backend
-backend/.venv/
-backend/.env
-backend/.env.dev
-backend/.env.prod
-
-# Miniprogram
-miniprogram/node_modules/
-miniprogram/dist/
-miniprogram/vite.config.ts.timestamp-*.mjs
-
-# IDE
-.idea/
-*.swp
-*.swo
-
-# Demo & docs
-demo/
-demo-*.html
-doc/
-
-# Root level stale config
-project.config.json
-project.private.config.json
-miniprogram/project.private.config.json
+*.pyc
+*.pyo
+.env
+.env.*
+!.env.example
+.DS_Store
+.venv/
+*.egg-info/
+dist/
+build/
+.ruff_cache/
+node_modules/
