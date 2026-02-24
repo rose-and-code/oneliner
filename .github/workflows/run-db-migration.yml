@@ -34,19 +34,9 @@ jobs:
         working-directory: ./backend
         run: uv sync
 
-      - name: 加载环境变量
-        working-directory: ./backend
-        run: |
-          set -a
-          source .env.${{ inputs.environment }}
-          set +a
-          echo "DATABASE_HOST=$DATABASE_HOST" >> $GITHUB_ENV
-          echo "DATABASE_PORT=$DATABASE_PORT" >> $GITHUB_ENV
-          echo "DATABASE_USER=$DATABASE_USER" >> $GITHUB_ENV
-          echo "DATABASE_NAME=$DATABASE_NAME" >> $GITHUB_ENV
-
       - name: 运行数据库迁移
         working-directory: ./backend
         env:
-          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          ENV: ${{ inputs.environment }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: uv run aerich upgrade
