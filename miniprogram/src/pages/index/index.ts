@@ -3,7 +3,9 @@ import { fetchAllBooks } from '../../services/sentences'
 import { toggleBookmark } from '../../services/bookmarks'
 import { isLoggedIn } from '../../services/auth'
 
-const { shared, timing, repeat, sequence, Easing } = wx.worklet
+const worklet = wx.worklet || {}
+const { shared, timing, repeat, sequence, Easing } = worklet
+const isSkyline = typeof shared === 'function'
 
 interface JumpHistoryEntry {
   bookIndex: number
@@ -116,6 +118,7 @@ Page({
   hintVal: null as ReturnType<typeof shared<number>> | null,
 
   setupHintAnimations() {
+    if (!isSkyline) return
     const hv = shared(0)
     this.hintVal = hv
     const ease = Easing.inOut(Easing.ease)
@@ -132,6 +135,7 @@ Page({
   },
 
   setupHorizontalHints() {
+    if (!isSkyline) return
     const hv = this.hintVal
     if (!hv) return
 
