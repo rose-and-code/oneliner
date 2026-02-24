@@ -39,4 +39,6 @@ jobs:
         env:
           ENV: ${{ inputs.environment }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: uv run aerich upgrade
+        run: |
+          uv run aerich fix-migrations || true
+          uv run aerich upgrade
