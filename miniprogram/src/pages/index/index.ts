@@ -70,6 +70,8 @@ Page({
     showSheet: false,
     sheetAuthor: '',
     sheetBooks: [],
+    flipSq: {} as Record<string, unknown>,
+    flipOq: {} as Record<string, unknown>,
   } as IndexData,
 
   jumpHistory: [] as JumpHistoryEntry[],
@@ -102,12 +104,16 @@ Page({
     }
     for (let i = 0; i < books.length; i++) {
       for (let j = 0; j < books[i].sentences.length; j++) {
-        const s = books[i].sentences[j]
-        const allQuotes = s.similar_quotes.concat(s.opposite_quotes)
+        const s = books[i].sentences[j] as Record<string, unknown>
+        const sq = (s.similar_quotes as Record<string, unknown>[]) || []
+        const oq = (s.opposite_quotes as Record<string, unknown>[]) || []
+        const allQuotes = sq.concat(oq)
         for (let k = 0; k < allQuotes.length; k++) {
-          allQuotes[k].book_found = titleSet[allQuotes[k].book_title] || false
-          allQuotes[k].author_multi_book = (authorCount[allQuotes[k].book_author] || 0) > 1
+          allQuotes[k].book_found = titleSet[allQuotes[k].book_title as string] || false
+          allQuotes[k].author_multi_book = (authorCount[allQuotes[k].book_author as string] || 0) > 1
         }
+        s.sq = sq[0] || {}
+        s.oq = oq[0] || {}
       }
     }
     this.setData({ books, loading: false })
@@ -207,7 +213,32 @@ Page({
   },
 
   onTapFlip() {
-    this.setData({ isFlipped: true })
+    const { books, bookIndex, sentenceIndex } = this.data
+    const s = books[bookIndex].sentences[sentenceIndex]
+    const rawSq = s.similar_quotes && s.similar_quotes.length > 0 ? s.similar_quotes[0] : null
+    const rawOq = s.opposite_quotes && s.opposite_quotes.length > 0 ? s.opposite_quotes[0] : null
+    const titleSet: Record<string, boolean> = {}
+    const authorCount: Record<string, number> = {}
+    for (let i = 0; i < books.length; i++) {
+      titleSet[books[i].book.title] = true
+      authorCount[books[i].book.author] = (authorCount[books[i].book.author] || 0) + 1
+    }
+    const enrich = (q: Record<string, unknown> | null): Record<string, unknown> => {
+      if (!q) return {}
+      return {
+        text: q.text,
+        book_title: q.book_title,
+        book_author: q.book_author,
+        sentence_id: q.sentence_id || null,
+        book_found: titleSet[q.book_title as string] || false,
+        author_multi_book: (authorCount[q.book_author as string] || 0) > 1,
+      }
+    }
+    this.setData({
+      isFlipped: true,
+      flipSq: enrich(rawSq as Record<string, unknown> | null),
+      flipOq: enrich(rawOq as Record<string, unknown> | null),
+    })
   },
 
   onTapBack() {

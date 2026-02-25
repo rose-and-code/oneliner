@@ -73,9 +73,6 @@ def get_all_books_with_sentences(
                     context_before=s.get("context_before", ""),
                     context_after=s.get("context_after", ""),
                     chapter=s.get("chapter", ""),
-                    ai_explanation=s.get("ai_explanation", ""),
-                    counter_quote=s.get("counter_quote", ""),
-                    counter_source=s.get("counter_source", ""),
                     similar_quotes=[
                         RelatedQuote(**q) for q in s.get("similar_quotes", [])
                     ],
