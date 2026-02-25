@@ -33,6 +33,7 @@ app.include_router(books_router)
 app.include_router(favorites_router)
 
 
+@app.get("/")
 @app.get("/health")
 async def health():
     """健康检查端点。"""

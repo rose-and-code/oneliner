@@ -60,4 +60,3 @@ MODELS_STATE = (
     "vprTlP646vcKThpJiAZySEWCNxDbfL9CsM9v3yfWEooy68ymEsPb6zb/6FxPLvotfeOWf9"
     "B66+1l8Rd54Xry"
 )
-
