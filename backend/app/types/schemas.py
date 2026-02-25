@@ -66,9 +66,6 @@ class SentenceResponse(BaseModel):
     context_before: str
     context_after: str
     chapter: str
-    ai_explanation: str
-    counter_quote: str
-    counter_source: str
     similar_quotes: list[RelatedQuote] = []
     opposite_quotes: list[RelatedQuote] = []
     sort_order: int

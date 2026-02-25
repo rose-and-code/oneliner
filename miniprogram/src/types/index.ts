@@ -22,9 +22,6 @@ export interface Sentence {
   context_before: string
   context_after: string
   chapter: string
-  ai_explanation: string
-  counter_quote: string
-  counter_source: string
   similar_quotes: RelatedQuote[]
   opposite_quotes: RelatedQuote[]
   sort_order: number

@@ -128,7 +128,7 @@
                         <view style="width:16px; height:1px; background:#2E4A40;"></view>
                       </view>
 
-                      <view wx:if="{{sIdx === sentenceIndex && contextOpen}}" class="flex items-center justify-center" style="margin-top:8px;">
+                      <view wx:if="{{sIdx === sentenceIndex && contextOpen && sentence.similar_quotes.length > 0}}" class="flex items-center justify-center" style="margin-top:8px;">
                         <view
                           class="flex items-center text-white text-xs font-medium tracking-wider"
                           style="gap:4px; padding:6px 14px; border-radius:20px; background:linear-gradient(135deg,#34D399,#F0A050);"
@@ -156,30 +156,25 @@
                         <view class="text-xs font-semibold tracking-widest text-white" style="display:inline-block; padding:4px 14px; border-radius:12px; background:linear-gradient(135deg,#34D399,#F0A050);">英雄所见略同</view>
                       </view>
                       <view style="background:rgba(255,255,255,0.03); border:1px solid rgba(52,211,153,0.08); border-radius:14px; padding:14px 16px 12px; position:relative;">
-                        <view
-                          class="text-text font-light text-center"
-                          style="font-size:14px; line-height:1.9;"
-                          catchtap="onTapRelatedQuote"
-                          data-sentence-id="{{sentence.similar_quotes[0].sentence_id}}"
-                        >
-                          <text>{{sentence.similar_quotes[0].text}}</text>
-                          <view wx:if="{{sentence.similar_quotes[0].sentence_id}}" style="position:absolute; right:8px; top:14px; font-size:14px; color:rgba(52,211,153,0.3); font-weight:300;">›</view>
+                        <view class="text-text font-light text-center" style="font-size:14px; line-height:1.9;" catchtap="onTapRelatedQuote" data-sentence-id="{{flipSq.sentence_id}}">
+                          <text>{{flipSq.text}}</text>
+                          <view wx:if="{{flipSq.sentence_id}}" style="position:absolute; right:8px; top:14px; font-size:14px; color:rgba(52,211,153,0.3); font-weight:300;">›</view>
                         </view>
                         <view class="flex items-center justify-center" style="gap:6px; margin-top:10px;">
                           <view style="width:3px; height:3px; border-radius:50%; background:#34D399; opacity:0.5;"></view>
-                          <view wx:if="{{sentence.similar_quotes[0].book_found}}" style="position:relative;" catchtap="onTapRelatedBookTitle" data-book-title="{{sentence.similar_quotes[0].book_title}}">
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">《{{sentence.similar_quotes[0].book_title}}》</text>
+                          <view wx:if="{{flipSq.book_found}}" style="position:relative;" catchtap="onTapRelatedBookTitle" data-book-title="{{flipSq.book_title}}">
+                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">《{{flipSq.book_title}}》</text>
                             <view style="position:absolute; left:0; right:0; bottom:-2px; height:1px; border-bottom:1px dashed rgba(84,110,100,0.5);"></view>
                           </view>
                           <view wx:else>
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">《{{sentence.similar_quotes[0].book_title}}》</text>
+                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">《{{flipSq.book_title}}》</text>
                           </view>
-                          <view wx:if="{{sentence.similar_quotes[0].author_multi_book}}" style="position:relative;" catchtap="onTapRelatedAuthor" data-author="{{sentence.similar_quotes[0].book_author}}">
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">{{sentence.similar_quotes[0].book_author}}</text>
+                          <view wx:if="{{flipSq.author_multi_book}}" style="position:relative;" catchtap="onTapRelatedAuthor" data-author="{{flipSq.book_author}}">
+                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">{{flipSq.book_author}}</text>
                             <view style="position:absolute; left:0; right:0; bottom:-2px; height:1px; border-bottom:1px dashed rgba(84,110,100,0.5);"></view>
                           </view>
                           <view wx:else>
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">{{sentence.similar_quotes[0].book_author}}</text>
+                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">{{flipSq.book_author}}</text>
                           </view>
                         </view>
                       </view>
@@ -190,30 +185,25 @@
                         <view class="text-xs font-semibold tracking-widest text-white" style="display:inline-block; padding:4px 14px; border-radius:12px; background:linear-gradient(135deg,#34D399,#F0A050);">但也有人说...</view>
                       </view>
                       <view style="background:rgba(255,255,255,0.03); border:1px solid rgba(52,211,153,0.08); border-radius:14px; padding:14px 16px 12px; position:relative;">
-                        <view
-                          class="text-text font-light text-center"
-                          style="font-size:14px; line-height:1.9;"
-                          catchtap="onTapRelatedQuote"
-                          data-sentence-id="{{sentence.opposite_quotes[0].sentence_id}}"
-                        >
-                          <text>{{sentence.opposite_quotes[0].text}}</text>
-                          <view wx:if="{{sentence.opposite_quotes[0].sentence_id}}" style="position:absolute; right:8px; top:14px; font-size:14px; color:rgba(52,211,153,0.3); font-weight:300;">›</view>
+                        <view class="text-text font-light text-center" style="font-size:14px; line-height:1.9;" catchtap="onTapRelatedQuote" data-sentence-id="{{flipOq.sentence_id}}">
+                          <text>{{flipOq.text}}</text>
+                          <view wx:if="{{flipOq.sentence_id}}" style="position:absolute; right:8px; top:14px; font-size:14px; color:rgba(52,211,153,0.3); font-weight:300;">›</view>
                         </view>
                         <view class="flex items-center justify-center" style="gap:6px; margin-top:10px;">
                           <view style="width:3px; height:3px; border-radius:50%; background:#34D399; opacity:0.5;"></view>
-                          <view wx:if="{{sentence.opposite_quotes[0].book_found}}" style="position:relative;" catchtap="onTapRelatedBookTitle" data-book-title="{{sentence.opposite_quotes[0].book_title}}">
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">《{{sentence.opposite_quotes[0].book_title}}》</text>
+                          <view wx:if="{{flipOq.book_found}}" style="position:relative;" catchtap="onTapRelatedBookTitle" data-book-title="{{flipOq.book_title}}">
+                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">《{{flipOq.book_title}}》</text>
                             <view style="position:absolute; left:0; right:0; bottom:-2px; height:1px; border-bottom:1px dashed rgba(84,110,100,0.5);"></view>
                           </view>
                           <view wx:else>
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">《{{sentence.opposite_quotes[0].book_title}}》</text>
+                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">《{{flipOq.book_title}}》</text>
                           </view>
-                          <view wx:if="{{sentence.opposite_quotes[0].author_multi_book}}" style="position:relative;" catchtap="onTapRelatedAuthor" data-author="{{sentence.opposite_quotes[0].book_author}}">
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">{{sentence.opposite_quotes[0].book_author}}</text>
+                          <view wx:if="{{flipOq.author_multi_book}}" style="position:relative;" catchtap="onTapRelatedAuthor" data-author="{{flipOq.book_author}}">
+                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">{{flipOq.book_author}}</text>
                             <view style="position:absolute; left:0; right:0; bottom:-2px; height:1px; border-bottom:1px dashed rgba(84,110,100,0.5);"></view>
                           </view>
                           <view wx:else>
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">{{sentence.opposite_quotes[0].book_author}}</text>
+                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">{{flipOq.book_author}}</text>
                           </view>
                         </view>
                       </view>
@@ -221,6 +211,7 @@
                       <view class="text-xs tracking-wide text-text-faint text-center" style="margin-top:20px;" catchtap="onTapBack">←</view>
                     </view>
                   </view>
+
                 </view>
               </swiper-item>
             </block>
