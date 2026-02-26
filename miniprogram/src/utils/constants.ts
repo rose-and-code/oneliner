@@ -1,4 +1,4 @@
-export const API_BASE = 'http://localhost:8000'
+export const API_BASE = 'https://oneliner.workbench.one2x-ai.com'
 
 export const SWIPE_THRESHOLD = 36
 export const SWIPE_MAX_TIME = 300
