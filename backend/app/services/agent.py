@@ -3,7 +3,9 @@ import logging
 from pathlib import Path
 from uuid import UUID
 
-from app.entities.event import UserEvent
+from openai import AsyncOpenAI
+
+from app.config import settings
 from app.services.book import get_sentence_by_id
 from app.services.book import _books
 
@@ -21,34 +23,69 @@ def _load_file(path: Path) -> str:
     return ""
 
 
-def _find_book_for_sentence(sentence: dict) -> dict:
-    """Find the book a sentence belongs to."""
-    book_id = sentence.get("book_id")
-    for b in _books:
-        if b["id"] == book_id:
-            return b
-    return {}
+def _get_client() -> AsyncOpenAI | None:
+    """Get ARK API client, return None if not configured."""
+    if not settings.ark_api_key:
+        return None
+    return AsyncOpenAI(api_key=settings.ark_api_key, base_url=settings.ark_base_url)
 
 
-async def generate_sprout_via_openclaw(user_context: dict) -> dict | None:
-    """通过 OpenClaw SDK 调用 Garden Agent 生成冒芽（需要 Gateway 部署后启用）"""
+async def _call_llm(system_prompt: str, user_prompt: str) -> dict | None:
+    """Call ARK LLM API and parse JSON response."""
+    client = _get_client()
+    if not client:
+        logger.warning("ARK API 未配置，使用降级方案")
+        return None
     try:
-        from openclaw_sdk import OpenClawClient
-        async with await OpenClawClient.connect() as client:
-            agent = client.get_agent("garden")
-            prompt = f"执行 garden-sprout skill，用户上下文：{json.dumps(user_context, ensure_ascii=False)}"
-            result = await agent.execute(prompt)
-            return json.loads(result.content)
-    except ImportError:
-        logger.warning("openclaw-sdk 未安装，使用降级方案")
-        return None
+        resp = await client.chat.completions.create(
+            model=settings.ark_chat_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.8,
+            max_tokens=500,
+        )
+        content = resp.choices[0].message.content.strip()
+        if content.startswith("```"):
+            content = content.split("\n", 1)[1] if "\n" in content else content[3:]
+            content = content.rsplit("```", 1)[0]
+        return json.loads(content)
     except Exception as e:
-        logger.warning("OpenClaw 调用失败: %s，使用降级方案", e)
+        logger.warning("ARK API 调用失败: %s，使用降级方案", e)
         return None
 
 
-async def generate_sprout_fallback(user_context: dict) -> dict | None:
-    """降级方案：基于规则模板生成冒芽（不依赖 AI）"""
+async def generate_sprout(user_context: dict) -> dict | None:
+    """生成冒芽：先尝试 LLM，失败则降级到模板"""
+    soul = _load_file(SOUL_PATH)
+    skill = _load_file(SPROUT_SKILL_PATH)
+    system_prompt = f"{soul}\n\n---\n\n{skill}"
+    user_prompt = f"用户上下文：\n{json.dumps(user_context, ensure_ascii=False, indent=2)}"
+
+    result = await _call_llm(system_prompt, user_prompt)
+    if result and result.get("text"):
+        return result
+    return await _generate_sprout_fallback(user_context)
+
+
+async def analyze_events_and_generate_reply(user_id: UUID, user_context: dict) -> dict | None:
+    """分析用户行为事件流，生成花灵回复。先尝试 LLM，失败则降级到规则模板。"""
+    soul = _load_file(SOUL_PATH)
+    skill = _load_file(REPLY_SKILL_PATH)
+    system_prompt = f"{soul}\n\n---\n\n{skill}"
+    user_prompt = f"用户上下文：\n{json.dumps(user_context, ensure_ascii=False, indent=2)}"
+
+    result = await _call_llm(system_prompt, user_prompt)
+    if result and result.get("hook") and result.get("body"):
+        if "reaction_options" not in result or not result["reaction_options"]:
+            result["reaction_options"] = ["确实", "才不是"]
+        return result
+    return await _generate_reply_fallback(user_id, user_context)
+
+
+async def _generate_sprout_fallback(user_context: dict) -> dict | None:
+    """降级方案：基于规则模板生成冒芽"""
     favorites = user_context.get("favorites", [])
     if len(favorites) < 3:
         return None
@@ -87,38 +124,6 @@ async def generate_sprout_fallback(user_context: dict) -> dict | None:
     return None
 
 
-async def generate_sprout(user_context: dict) -> dict | None:
-    """生成冒芽：先尝试 OpenClaw，失败则降级到模板"""
-    result = await generate_sprout_via_openclaw(user_context)
-    if result:
-        return result
-    return await generate_sprout_fallback(user_context)
-
-
-async def generate_reply_via_openclaw(user_context: dict) -> dict | None:
-    """通过 OpenClaw SDK 调用 Garden Agent 生成花灵回复"""
-    try:
-        from openclaw_sdk import OpenClawClient
-        async with await OpenClawClient.connect() as client:
-            agent = client.get_agent("garden")
-            prompt = f"执行 garden-reply skill，用户上下文：{json.dumps(user_context, ensure_ascii=False)}"
-            result = await agent.execute(prompt)
-            return json.loads(result.content)
-    except ImportError:
-        return None
-    except Exception as e:
-        logger.warning("OpenClaw reply 调用失败: %s", e)
-        return None
-
-
-async def analyze_events_and_generate_reply(user_id: UUID, user_context: dict) -> dict | None:
-    """分析用户行为事件流，生成花灵回复。先尝试 OpenClaw，失败则降级到规则模板。"""
-    result = await generate_reply_via_openclaw(user_context)
-    if result:
-        return result
-    return await _generate_reply_fallback(user_id, user_context)
-
-
 async def _generate_reply_fallback(user_id: UUID, user_context: dict) -> dict | None:
     """降级方案：从行为事件中检测模式，生成规则模板回复"""
     events = user_context.get("events", [])
@@ -127,21 +132,16 @@ async def _generate_reply_fallback(user_id: UUID, user_context: dict) -> dict | 
     if len(events) < 3:
         return None
 
-    pattern = _detect_pattern(events, favorites)
-    if not pattern:
-        return None
-
-    return pattern
+    return _detect_pattern(events, favorites)
 
 
 def _detect_pattern(events: list[dict], favorites: list[dict]) -> dict | None:
     """从行为事件和收藏中检测可触发回复的模式，按优先级返回第一个命中。"""
-
     long_dwell = _detect_long_dwell(events)
     if long_dwell:
         return long_dwell
 
-    consecutive_theme = _detect_consecutive_theme(events, favorites)
+    consecutive_theme = _detect_consecutive_theme(events)
     if consecutive_theme:
         return consecutive_theme
 
@@ -171,13 +171,12 @@ def _detect_long_dwell(events: list[dict]) -> dict | None:
     }
 
 
-def _detect_consecutive_theme(events: list[dict], favorites: list[dict]) -> dict | None:
+def _detect_consecutive_theme(events: list[dict]) -> dict | None:
     """检测连续浏览同主题内容"""
     view_events = [e for e in events if e["event_type"] in ("dwell", "context_open", "flip")]
     if len(view_events) < 3:
         return None
 
-    recent_texts = [e.get("sentence_text", "") for e in view_events[:10]]
     recent_ids = []
     for e in view_events[:10]:
         sid = e.get("sentence_id")
