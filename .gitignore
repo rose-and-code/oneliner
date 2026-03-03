@@ -14,5 +14,7 @@ build/
 .ruff_cache/
 node_modules/
 demo/
+demos/
 doc/
+docs/
 project.private.config.json

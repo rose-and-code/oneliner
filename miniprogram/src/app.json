@@ -3,13 +3,14 @@
   "pages": [
     "pages/index/index",
     "pages/mine/mine",
+    "pages/profile/profile",
     "pages/login/login"
   ],
   "window": {
     "navigationStyle": "custom",
-    "backgroundColor": "#0A0F0E",
-    "backgroundColorTop": "#0A0F0E",
-    "backgroundColorBottom": "#0A0F0E"
+    "backgroundColor": "#F2EDE7",
+    "backgroundColorTop": "#F2EDE7",
+    "backgroundColorBottom": "#F2EDE7"
   },
   "renderer": "skyline",
   "rendererOptions": {

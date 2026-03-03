@@ -1,67 +1,83 @@
 <view
-  class="flex flex-col w-full bg-bg relative"
-  style="height:100vh; overflow:hidden;"
+  class="flex flex-col w-full relative"
+  style="height:100vh; overflow:hidden; background:#F2EDE7;"
 >
-  <view class="absolute inset-0 pointer-events-none overflow-hidden">
-    <view class="absolute rounded-full" style="width:320px; height:320px; background:rgba(52,211,153,0.055); top:-80px; left:-50px;"></view>
-    <view class="absolute rounded-full" style="width:280px; height:280px; background:rgba(240,160,80,0.04); top:35%; right:-70px;"></view>
-    <view class="absolute rounded-full" style="width:360px; height:360px; background:rgba(52,211,153,0.035); bottom:-100px; left:25%;"></view>
+
+  <view
+    class="flex items-center"
+    style="padding:56px 24px 0; justify-content:space-between; position:relative; z-index:50;"
+  >
+    <view
+      wx:if="{{hasHistory}}"
+      style="width:40px; height:40px; border-radius:50%; background:#1A1A1A; display:flex; align-items:center; justify-content:center;"
+      catchtap="onGoBack"
+    >
+      <text style="font-size:18px; color:#F2EDE7; font-weight:300;">‹</text>
+    </view>
+    <view wx:else style="width:40px; height:40px;"></view>
+
+    <view style="display:flex; align-items:center; gap:12px;">
+      <view
+        wx:if="{{currentSentence}}"
+        class="bookmark-btn"
+        style="width:40px; height:40px; border-radius:50%; background:rgba(26,26,26,0.06); display:flex; align-items:center; justify-content:center;"
+        catchtap="onTapBookmark"
+        data-sentence-id="{{currentSentence.id}}"
+        data-book-idx="{{bookIndex}}"
+        data-sentence-idx="{{sentenceIndex}}"
+      >
+        <text style="font-size:16px;">{{currentSentence.is_bookmarked ? '♥' : '♡'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view style="padding:12px 28px 0; position:relative; z-index:20;">
+    <view style="font-size:13px; color:rgba(26,26,26,0.4); font-weight:500; letter-spacing:0.03em;">{{currentBookTitle}}</view>
   </view>
 
   <view
-    wx:if="{{hasHistory}}"
-    class="flex items-center"
-    style="position:absolute; top:56px; left:20px; z-index:50; padding:6px 12px; border-radius:16px; background:rgba(255,255,255,0.06); border:1px solid rgba(52,211,153,0.12);"
-    catchtap="onGoBack"
+    wx:if="{{showSprout}}"
+    style="padding:8px 28px 4px; position:relative; z-index:25;"
+    bindtap="onTapSprout"
   >
-    <text style="font-size:13px; font-weight:300; color:#9AADA2;">‹</text>
-    <text style="font-size:11px; color:#9AADA2; letter-spacing:0.05em; margin-left:4px;">返回上一张</text>
-  </view>
-
-  <view style="padding-top:60px; padding-left:24px; padding-right:24px; text-align:center; position:relative; z-index:20;">
-    <view class="text-xs font-medium tracking-widest text-text-dim">{{currentBookTitle}}</view>
-    <view class="flex items-center justify-center mt-2" style="gap:4px;">
-      <block wx:for="{{progressDots}}" wx:key="*this">
-        <view wx:if="{{sentenceIndex === item}}" style="width:20px; height:4px; border-radius:2px; background:linear-gradient(135deg,#34D399,#F0A050);"></view>
-        <view wx:elif="{{item < sentenceIndex}}" style="width:4px; height:4px; border-radius:50%; background:#546E64;"></view>
-        <view wx:else style="width:4px; height:4px; border-radius:50%; background:#2E4A40;"></view>
-      </block>
+    <view style="font-size:13px; color:rgba(26,26,26,0.35); font-weight:400; line-height:1.6; letter-spacing:0.02em;">
+      {{sproutText}}<text wx:if="{{sproutTargetId}}" style="color:rgba(26,26,26,0.5); margin-left:4px;">›</text>
     </view>
-    <view class="text-xs text-text-faint" style="margin-top:4px;">{{sentenceIndex + 1}} / {{totalSentences}}</view>
   </view>
 
   <view style="flex:1; position:relative; z-index:10; overflow:hidden;">
     <view wx:if="{{hintVertical}}" class="pointer-events-none" style="position:absolute; left:0; right:0; top:0; bottom:0; z-index:30;">
-      <view id="hint-down" style="position:absolute; bottom:0px; left:50%; transform:translateX(-50%); width:48px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:14px; background:rgba(52,211,153,0.08);">
-        <text style="color:rgba(52,211,153,0.6); font-size:24px; font-weight:300; transform:rotate(90deg);">›</text>
+      <view id="hint-down" style="position:absolute; bottom:8px; left:50%; transform:translateX(-50%); width:44px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:14px; background:rgba(26,26,26,0.06);">
+        <text style="color:rgba(26,26,26,0.3); font-size:20px; font-weight:300; transform:rotate(90deg);">›</text>
       </view>
     </view>
     <view wx:if="{{hintHorizontal}}" class="pointer-events-none" style="position:absolute; left:0; right:0; top:0; bottom:0; z-index:30;">
-      <view id="hint-left" style="position:absolute; left:4px; top:50%; transform:translateY(-50%); width:28px; height:48px; display:flex; align-items:center; justify-content:center; border-radius:14px; background:rgba(52,211,153,0.08);">
-        <text style="color:rgba(52,211,153,0.6); font-size:24px; font-weight:300;">‹</text>
+      <view id="hint-left" style="position:absolute; left:4px; top:50%; transform:translateY(-50%); width:28px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:14px; background:rgba(26,26,26,0.06);">
+        <text style="color:rgba(26,26,26,0.3); font-size:20px; font-weight:300;">‹</text>
       </view>
-      <view id="hint-right" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); width:28px; height:48px; display:flex; align-items:center; justify-content:center; border-radius:14px; background:rgba(52,211,153,0.08);">
-        <text style="color:rgba(52,211,153,0.6); font-size:24px; font-weight:300;">›</text>
+      <view id="hint-right" style="position:absolute; right:4px; top:50%; transform:translateY(-50%); width:28px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:14px; background:rgba(26,26,26,0.06);">
+        <text style="color:rgba(26,26,26,0.3); font-size:20px; font-weight:300;">›</text>
       </view>
     </view>
+
     <swiper
       style="width:100%; height:100%;"
       current="{{bookIndex}}"
-      previous-margin="32px"
-      next-margin="32px"
+      previous-margin="28px"
+      next-margin="28px"
       bindchange="onBookChange"
       easing-function="easeInOutCubic"
       duration="{{350}}"
     >
       <block wx:for="{{books}}" wx:for-index="bIdx" wx:key="bIdx">
         <swiper-item>
-          <view style="width:100%; height:100%; padding:0 10px;">
+          <view style="width:100%; height:100%; padding:0 8px;">
           <swiper
             vertical
             style="width:100%; height:100%;"
             current="{{bIdx === bookIndex ? sentenceIndex : 0}}"
-            previous-margin="24px"
-            next-margin="24px"
+            previous-margin="20px"
+            next-margin="20px"
             bindchange="onSentenceChange"
             data-book-index="{{bIdx}}"
             easing-function="easeInOutCubic"
@@ -69,146 +85,97 @@
           >
             <block wx:for="{{item.sentences}}" wx:for-item="sentence" wx:for-index="sIdx" wx:key="sIdx">
               <swiper-item>
-                <view
-                  class="w-full"
-                  style="height:100%; padding:8px 0;"
-                >
+                <view style="height:100%; padding:6px 0; position:relative;">
+
                   <view
-                    wx:if="{{!(bIdx === bookIndex && sIdx === sentenceIndex && isFlipped)}}"
-                    class="w-full overflow-hidden"
-                    style="height:100%; border-radius:20px; background:rgba(255,255,255,{{bIdx === bookIndex ? '0.035' : '0.05'}}); box-shadow:0 6px 24px rgba(0,0,0,0.3),0 0 40px rgba(52,211,153,0.06); border:1px solid rgba(52,211,153,{{bIdx === bookIndex ? '0.10' : '0.12'}}); position:relative; display:flex; flex-direction:column; opacity:{{bIdx === bookIndex ? 1 : 0.7}};"
+                    id="{{bIdx === bookIndex && sIdx === sentenceIndex ? 'card-front' : ''}}"
+                    style="position:absolute; left:0; right:0; top:6px; bottom:6px; border-radius:24px; background:#FAF7F2; box-shadow:0 1px 4px rgba(26,26,26,0.04),0 6px 24px rgba(26,26,26,0.03); display:flex; flex-direction:column; overflow:hidden; opacity:{{bIdx === bookIndex ? 1 : 0.6}}; z-index:2;"
                   >
-                    <view style="position:absolute; top:0; left:24px; right:24px; height:1px; background:linear-gradient(135deg,#34D399,#F0A050); opacity:0.4; z-index:2;"></view>
+                    <image wx:if="{{bIdx === bookIndex && sIdx === sentenceIndex}}" src="{{cardIllustration}}" style="position:absolute; right:-10px; top:-5px; width:120px; height:120px; opacity:0.12;" mode="aspectFit" />
+                    <view style="flex:1; display:flex; flex-direction:column; justify-content:center; padding:0 24px; overflow:hidden;" catchtap="onTapSentence">
 
-                    <view style="flex:1; overflow:hidden; display:flex; align-items:center; justify-content:center; padding:0 24px;" catchtap="onTapSentence">
-                      <view style="position:relative; width:100%;">
-                        <view wx:if="{{bIdx === bookIndex && sIdx === sentenceIndex && contextOpen && sentence.context_before}}" class="text-text-secondary font-light" style="font-size:15px; line-height:1.9; position:absolute; left:0; right:0; bottom:100%; padding-bottom:16px; opacity:0.85;">
-                          {{sentence.context_before}}
-                        </view>
-
-                        <view style="position:relative; overflow:hidden; padding-bottom:4px;">
-                          <view class="text-text font-medium text-center" style="font-size:17px; line-height:2.2; text-shadow:0 0 28px rgba(52,211,153,0.15);">
-                            {{sentence.text}}
-                          </view>
-                          <view class="pointer-events-none" style="position:absolute; left:0; right:0; top:0; bottom:0; overflow:hidden;">
-                            <block wx:for="{{underlineRows}}" wx:key="*this">
-                              <view style="position:absolute; left:0; right:0; height:1px; background:rgba(52,211,153,0.3); top:{{(item + 1) * 37}}px;"></view>
-                            </block>
-                          </view>
-                        </view>
-
-                        <view wx:if="{{bIdx === bookIndex && sIdx === sentenceIndex && contextOpen && sentence.context_after}}" class="text-text-secondary font-light" style="font-size:15px; line-height:1.9; position:absolute; left:0; right:0; top:100%; padding-top:16px; opacity:0.85;">
-                          {{sentence.context_after}}
-                        </view>
-                      </view>
-                    </view>
-
-                    <view
-                      wx:if="{{bIdx === bookIndex}}"
-                      class="flex items-center justify-center"
-                      style="position:absolute; right:12px; bottom:80px; z-index:10; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.06); border:1px solid rgba(52,211,153,0.12);"
-                      catchtap="onTapBookmark"
-                      data-sentence-id="{{sentence.id}}"
-                      data-book-idx="{{bIdx}}"
-                      data-sentence-idx="{{sIdx}}"
-                    >
-                      <text style="font-size:16px;">{{sentence.is_bookmarked ? '⭐' : '☆'}}</text>
-                    </view>
-
-                    <view wx:if="{{bIdx === bookIndex}}" style="padding:0 24px 16px; display:flex; flex-direction:column; align-items:center; position:relative; z-index:5;">
-                      <view class="flex items-center justify-center" style="gap:10px;">
-                        <view style="width:16px; height:1px; background:#2E4A40;"></view>
-                        <view wx:if="{{currentAuthorMultiBook}}" catchtap="onTapAuthorName" data-author="{{item.book.author}}" style="position:relative;">
-                          <text class="text-xs tracking-wider text-text-dim">{{item.book.author}}</text>
-                          <view style="position:absolute; left:0; right:0; bottom:-2px; height:1px; border-bottom:1px dashed rgba(84,110,100,0.5);"></view>
-                        </view>
-                        <view wx:else>
-                          <text class="text-xs tracking-wider text-text-dim">{{item.book.author}}</text>
-                        </view>
-                        <view style="width:16px; height:1px; background:#2E4A40;"></view>
-                      </view>
-
-                      <view wx:if="{{sIdx === sentenceIndex && contextOpen && sentence.similar_quotes.length > 0}}" class="flex items-center justify-center" style="margin-top:8px;">
+                      <view
+                        wx:if="{{bIdx === bookIndex && sIdx === sentenceIndex && sentence.context_before}}"
+                        style="position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:flex-end; max-height:{{contextOpen ? 300 : 27}}px;"
+                      >
+                        <text style="font-size:14px; line-height:1.9; font-weight:400; color:rgba(26,26,26,{{contextOpen ? 0.35 : 0.15}});">{{sentence.context_before}}</text>
                         <view
-                          class="flex items-center text-white text-xs font-medium tracking-wider"
-                          style="gap:4px; padding:6px 14px; border-radius:20px; background:linear-gradient(135deg,#34D399,#F0A050);"
-                          catchtap="onTapFlip"
-                        >
-                          <text>翻一面</text>
-                        </view>
+                          wx:if="{{!contextOpen}}"
+                          style="position:absolute; left:0; right:0; top:0; bottom:0; background:linear-gradient(to bottom, #FAF7F2, transparent); pointer-events:none;"
+                        ></view>
                       </view>
 
-                      <view wx:if="{{sIdx === sentenceIndex && !contextOpen && sentence.chapter}}" class="text-xs text-text-faint tracking-wide text-center" style="margin-top:6px;">
+                      <view style="font-size:{{bIdx === bookIndex && sIdx === sentenceIndex ? currentFontSize : 17}}px; font-weight:900; color:#1A1A1A; line-height:1.7; letter-spacing:-0.01em; padding:8px 0;">
+                        {{sentence.text}}
+                      </view>
+
+                      <view
+                        wx:if="{{bIdx === bookIndex && sIdx === sentenceIndex && sentence.context_after}}"
+                        style="position:relative; overflow:hidden; max-height:{{contextOpen ? 300 : 27}}px;"
+                      >
+                        <text style="font-size:14px; line-height:1.9; font-weight:400; color:rgba(26,26,26,{{contextOpen ? 0.35 : 0.15}});">{{sentence.context_after}}</text>
+                        <view
+                          wx:if="{{!contextOpen}}"
+                          style="position:absolute; left:0; right:0; top:0; bottom:0; background:linear-gradient(to top, #FAF7F2, transparent); pointer-events:none;"
+                        ></view>
+                      </view>
+
+                    </view>
+
+                    <view wx:if="{{bIdx === bookIndex && sIdx === sentenceIndex}}" style="padding:0 24px 16px;">
+                      <view style="font-size:13px; color:rgba(26,26,26,0.4); font-weight:500; letter-spacing:0.03em;">
+                        <text wx:if="{{currentAuthorMultiBook}}" catchtap="onTapAuthorName" data-author="{{item.book.author}}" style="border-bottom:1px dashed rgba(26,26,26,0.2);">{{item.book.author}}</text>
+                        <text wx:else>{{item.book.author}}</text>
+                      </view>
+                      <view wx:if="{{!contextOpen && sentence.chapter}}" style="font-size:11px; color:rgba(26,26,26,0.2); margin-top:4px;">
                         {{sentence.chapter}}
+                      </view>
+                      <view
+                        wx:if="{{bIdx === bookIndex && sIdx === sentenceIndex && seedEchoVisible}}"
+                        id="seed-echo"
+                        style="font-size:12px; color:rgba(26,26,26,0.3); font-weight:400; margin-top:10px;"
+                      >
+                        {{seedEchoText}}
                       </view>
                     </view>
                   </view>
 
                   <view
-                    wx:if="{{bIdx === bookIndex && sIdx === sentenceIndex && isFlipped}}"
-                    class="w-full"
-                    style="height:100%; border-radius:20px; background:rgba(255,255,255,0.025); box-shadow:0 6px 24px rgba(0,0,0,0.3),0 0 40px rgba(52,211,153,0.06); border:1px solid rgba(52,211,153,0.10); overflow:hidden; display:flex; flex-direction:column; position:relative;"
+                    wx:if="{{bIdx === bookIndex && sIdx === sentenceIndex}}"
+                    id="card-back"
+                    style="position:absolute; left:0; right:0; top:6px; bottom:6px; border-radius:24px; background:#FAF7F2; box-shadow:0 1px 4px rgba(26,26,26,0.04),0 6px 24px rgba(26,26,26,0.03); display:flex; flex-direction:column; justify-content:center; padding:0 24px; overflow:hidden; z-index:1;"
                   >
-                    <view style="position:absolute; top:0; left:24px; right:24px; height:1px; background:linear-gradient(135deg,#34D399,#F0A050); opacity:0.4;"></view>
-
-                    <view style="flex:1; overflow:hidden; display:flex; flex-direction:column; justify-content:center; padding:28px 22px 20px;">
-                      <view class="text-center" style="margin-bottom:16px;">
-                        <view class="text-xs font-semibold tracking-widest text-white" style="display:inline-block; padding:4px 14px; border-radius:12px; background:linear-gradient(135deg,#34D399,#F0A050);">英雄所见略同</view>
+                    <image src="{{flipIllustration}}" style="position:absolute; left:-15px; bottom:-10px; width:100px; height:100px; opacity:0.08;" mode="aspectFit" />
+                    <view style="margin-bottom:28px;">
+                      <view style="display:inline-block; padding:6px 16px; border-radius:50px; background:rgba(26,26,26,0.06); font-size:11px; font-weight:700; letter-spacing:0.08em; color:#1A1A1A; margin-bottom:14px;">英雄所见略同</view>
+                      <view style="font-size:18px; font-weight:700; line-height:1.8; color:#1A1A1A;" catchtap="onTapRelatedQuote" data-sentence-id="{{flipSq.sentence_id}}">
+                        {{flipSq.text}}
+                        <text wx:if="{{flipSq.sentence_id}}" style="color:rgba(26,26,26,0.2); font-weight:400;"> ›</text>
                       </view>
-                      <view style="background:rgba(255,255,255,0.03); border:1px solid rgba(52,211,153,0.08); border-radius:14px; padding:14px 16px 12px; position:relative;">
-                        <view class="text-text font-light text-center" style="font-size:14px; line-height:1.9;" catchtap="onTapRelatedQuote" data-sentence-id="{{flipSq.sentence_id}}">
-                          <text>{{flipSq.text}}</text>
-                          <view wx:if="{{flipSq.sentence_id}}" style="position:absolute; right:8px; top:14px; font-size:14px; color:rgba(52,211,153,0.3); font-weight:300;">›</view>
-                        </view>
-                        <view class="flex items-center justify-center" style="gap:6px; margin-top:10px;">
-                          <view style="width:3px; height:3px; border-radius:50%; background:#34D399; opacity:0.5;"></view>
-                          <view wx:if="{{flipSq.book_found}}" style="position:relative;" catchtap="onTapRelatedBookTitle" data-book-title="{{flipSq.book_title}}">
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">《{{flipSq.book_title}}》</text>
-                            <view style="position:absolute; left:0; right:0; bottom:-2px; height:1px; border-bottom:1px dashed rgba(84,110,100,0.5);"></view>
-                          </view>
-                          <view wx:else>
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">《{{flipSq.book_title}}》</text>
-                          </view>
-                          <view wx:if="{{flipSq.author_multi_book}}" style="position:relative;" catchtap="onTapRelatedAuthor" data-author="{{flipSq.book_author}}">
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">{{flipSq.book_author}}</text>
-                            <view style="position:absolute; left:0; right:0; bottom:-2px; height:1px; border-bottom:1px dashed rgba(84,110,100,0.5);"></view>
-                          </view>
-                          <view wx:else>
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">{{flipSq.book_author}}</text>
-                          </view>
-                        </view>
+                      <view style="font-size:11px; color:rgba(26,26,26,0.3); margin-top:8px; font-weight:500;">
+                        <text wx:if="{{flipSq.book_found}}" catchtap="onTapRelatedBookTitle" data-book-title="{{flipSq.book_title}}" style="border-bottom:1px dashed rgba(26,26,26,0.15);">《{{flipSq.book_title}}》</text>
+                        <text wx:else>《{{flipSq.book_title}}》</text>
+                        <text>  </text>
+                        <text wx:if="{{flipSq.author_multi_book}}" catchtap="onTapRelatedAuthor" data-author="{{flipSq.book_author}}" style="border-bottom:1px dashed rgba(26,26,26,0.15);">{{flipSq.book_author}}</text>
+                        <text wx:else>{{flipSq.book_author}}</text>
                       </view>
+                    </view>
 
-                      <view style="width:50%; height:1px; opacity:0.15; margin:20px auto; background:linear-gradient(90deg,transparent,#34D399,transparent);"></view>
+                    <view style="width:40px; height:2px; background:rgba(26,26,26,0.06); border-radius:1px; margin-bottom:28px;"></view>
 
-                      <view class="text-center" style="margin-bottom:16px;">
-                        <view class="text-xs font-semibold tracking-widest text-white" style="display:inline-block; padding:4px 14px; border-radius:12px; background:linear-gradient(135deg,#34D399,#F0A050);">但也有人说...</view>
+                    <view>
+                      <view style="display:inline-block; padding:6px 16px; border-radius:50px; background:rgba(180,100,50,0.08); font-size:11px; font-weight:700; letter-spacing:0.08em; color:rgba(160,90,40,0.8); margin-bottom:14px;">但也有人说</view>
+                      <view style="font-size:18px; font-weight:700; line-height:1.8; color:#1A1A1A;" catchtap="onTapRelatedQuote" data-sentence-id="{{flipOq.sentence_id}}">
+                        {{flipOq.text}}
+                        <text wx:if="{{flipOq.sentence_id}}" style="color:rgba(26,26,26,0.2); font-weight:400;"> ›</text>
                       </view>
-                      <view style="background:rgba(255,255,255,0.03); border:1px solid rgba(52,211,153,0.08); border-radius:14px; padding:14px 16px 12px; position:relative;">
-                        <view class="text-text font-light text-center" style="font-size:14px; line-height:1.9;" catchtap="onTapRelatedQuote" data-sentence-id="{{flipOq.sentence_id}}">
-                          <text>{{flipOq.text}}</text>
-                          <view wx:if="{{flipOq.sentence_id}}" style="position:absolute; right:8px; top:14px; font-size:14px; color:rgba(52,211,153,0.3); font-weight:300;">›</view>
-                        </view>
-                        <view class="flex items-center justify-center" style="gap:6px; margin-top:10px;">
-                          <view style="width:3px; height:3px; border-radius:50%; background:#34D399; opacity:0.5;"></view>
-                          <view wx:if="{{flipOq.book_found}}" style="position:relative;" catchtap="onTapRelatedBookTitle" data-book-title="{{flipOq.book_title}}">
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">《{{flipOq.book_title}}》</text>
-                            <view style="position:absolute; left:0; right:0; bottom:-2px; height:1px; border-bottom:1px dashed rgba(84,110,100,0.5);"></view>
-                          </view>
-                          <view wx:else>
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">《{{flipOq.book_title}}》</text>
-                          </view>
-                          <view wx:if="{{flipOq.author_multi_book}}" style="position:relative;" catchtap="onTapRelatedAuthor" data-author="{{flipOq.book_author}}">
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">{{flipOq.book_author}}</text>
-                            <view style="position:absolute; left:0; right:0; bottom:-2px; height:1px; border-bottom:1px dashed rgba(84,110,100,0.5);"></view>
-                          </view>
-                          <view wx:else>
-                            <text class="text-text-dim" style="font-size:11px; letter-spacing:0.03em;">{{flipOq.book_author}}</text>
-                          </view>
-                        </view>
+                      <view style="font-size:11px; color:rgba(26,26,26,0.3); margin-top:8px; font-weight:500;">
+                        <text wx:if="{{flipOq.book_found}}" catchtap="onTapRelatedBookTitle" data-book-title="{{flipOq.book_title}}" style="border-bottom:1px dashed rgba(26,26,26,0.15);">《{{flipOq.book_title}}》</text>
+                        <text wx:else>《{{flipOq.book_title}}》</text>
+                        <text>  </text>
+                        <text wx:if="{{flipOq.author_multi_book}}" catchtap="onTapRelatedAuthor" data-author="{{flipOq.book_author}}" style="border-bottom:1px dashed rgba(26,26,26,0.15);">{{flipOq.book_author}}</text>
+                        <text wx:else>{{flipOq.book_author}}</text>
                       </view>
-
-                      <view class="text-xs tracking-wide text-text-faint text-center" style="margin-top:20px;" catchtap="onTapBack">←</view>
                     </view>
                   </view>
 
@@ -222,48 +189,104 @@
     </swiper>
   </view>
 
-  <view style="display:flex; justify-content:center; align-items:center; gap:8px; padding:8px 24px; position:relative; z-index:20;">
-    <block wx:for="{{books}}" wx:key="index">
-      <view wx:if="{{bookIndex === index}}" style="width:20px; height:4px; border-radius:2px; background:linear-gradient(135deg,#34D399,#F0A050);"></view>
-      <view wx:else style="width:4px; height:4px; border-radius:50%; background:#2E4A40;"></view>
-    </block>
+  <view style="padding:0 24px 4px; position:relative; z-index:20;">
+    <view style="display:flex; align-items:center; justify-content:space-between;">
+      <view
+        wx:if="{{currentSentence && !isFlipped && currentSentence.similar_quotes.length > 0}}"
+        style="display:inline-flex; align-items:center; gap:8px; padding:12px 24px; border-radius:50px; background:#1A1A1A; color:#F2EDE7; font-size:13px; font-weight:700; letter-spacing:0.02em; box-shadow:0 2px 8px rgba(0,0,0,0.12);"
+        catchtap="onTapFlip"
+      >
+        <text>翻一面</text>
+        <text style="font-size:16px; font-weight:300;">→</text>
+      </view>
+      <view
+        wx:elif="{{isFlipped}}"
+        style="display:inline-flex; align-items:center; gap:8px; padding:12px 24px; border-radius:50px; background:#1A1A1A; color:#F2EDE7; font-size:13px; font-weight:700; letter-spacing:0.02em; box-shadow:0 2px 8px rgba(0,0,0,0.12);"
+        catchtap="onTapBack"
+      >
+        <text style="font-size:16px; font-weight:300;">←</text>
+        <text>返回</text>
+      </view>
+      <view wx:else style="height:44px;"></view>
+    </view>
   </view>
 
-  <view style="display:flex; align-items:center; justify-content:space-around; padding:8px 0 24px; position:relative; z-index:20; border-top:1px solid rgba(52,211,153,0.06);">
-    <view class="flex flex-col items-center" style="padding:4px 0;">
-      <text style="font-size:16px;">📖</text>
-      <text class="text-xs text-accent font-medium" style="margin-top:2px;">翻翻</text>
+  <view style="padding:4px 28px 0; position:relative; z-index:20;">
+    <view style="height:3px; background:rgba(26,26,26,0.06); border-radius:2px; overflow:hidden;">
+      <view style="height:100%; width:{{(sentenceIndex + 1) / totalSentences * 100}}%; background:#1A1A1A; border-radius:2px;"></view>
     </view>
-    <view class="flex flex-col items-center" style="padding:4px 0;" bindtap="goToMine">
-      <text style="font-size:16px;">⭐</text>
-      <text class="text-xs text-text-dim" style="margin-top:2px;">我的</text>
+    <view style="display:flex; justify-content:flex-end; margin-top:6px;">
+      <text style="font-size:10px; color:rgba(26,26,26,0.25); font-weight:500;">{{sentenceIndex + 1}} / {{totalSentences}}</text>
     </view>
+  </view>
+
+  <view
+    wx:if="{{toastVisible}}"
+    style="position:absolute; left:20px; right:20px; top:100px; z-index:60; padding:12px 16px; border-radius:16px; background:rgba(242,237,231,0.95); border:1px solid rgba(26,26,26,0.06); box-shadow:0 2px 12px rgba(26,26,26,0.06);"
+    bindtap="onTapToast"
+  >
+    <view style="display:flex; align-items:center; gap:8px;">
+      <text style="font-size:14px;">🌱</text>
+      <text style="font-size:13px; font-weight:500; color:rgba(26,26,26,0.5); flex:1;">{{toastHook}}</text>
+      <text style="font-size:14px; color:rgba(26,26,26,0.2); font-weight:300;">›</text>
+    </view>
+  </view>
+
+  <view style="display:flex; align-items:center; justify-content:center; gap:32px; padding:10px 0 28px; position:relative; z-index:20;">
+    <view class="flex flex-col items-center" style="gap:2px;">
+      <text style="font-size:18px;">📖</text>
+      <text style="font-size:10px; font-weight:600; color:#1A1A1A;">翻翻</text>
+    </view>
+    <view id="tab-garden" class="flex flex-col items-center" style="gap:2px;" bindtap="goToMine">
+      <text style="font-size:18px;">🌱</text>
+      <text style="font-size:10px; font-weight:600; color:rgba(26,26,26,0.25);">花园</text>
+    </view>
+    <view class="flex flex-col items-center" style="gap:2px;" bindtap="goToProfile">
+      <text style="font-size:18px;">👤</text>
+      <text style="font-size:10px; font-weight:600; color:rgba(26,26,26,0.25);">我的</text>
+    </view>
+  </view>
+
+  <view
+    id="seed-dot"
+    style="width:6px; height:6px; border-radius:50%; background:rgba(76,140,100,0.6); position:absolute; z-index:99; opacity:0;"
+  ></view>
+
+  <view
+    wx:if="{{showBookOverlay}}"
+    class="absolute inset-0 flex flex-col items-center justify-center"
+    style="z-index:70; background:rgba(242,237,231,0.94);"
+  >
+    <image src="{{overlayIllustration}}" style="width:160px; height:160px; margin-bottom:20px; opacity:0.7;" mode="aspectFit" />
+    <view style="font-size:28px; font-weight:900; color:#1A1A1A; letter-spacing:-0.01em;">{{overlayBookTitle}}</view>
+    <view style="font-size:14px; color:rgba(26,26,26,0.4); margin-top:10px; font-weight:500;">{{overlayBookAuthor}}</view>
+    <view style="font-size:11px; color:rgba(26,26,26,0.2); margin-top:16px;">{{overlayBookCount}} 句</view>
   </view>
 
   <view
     wx:if="{{showSheet}}"
     class="absolute inset-0"
-    style="z-index:80; background:rgba(0,0,0,0.5);"
+    style="z-index:80; background:rgba(0,0,0,0.3);"
     catchtap="onCloseSheet"
   ></view>
   <view
     wx:if="{{showSheet}}"
-    style="position:absolute; bottom:0; left:0; right:0; z-index:90; background:#131a18; border-top:1px solid rgba(52,211,153,0.12); border-radius:24px 24px 0 0; padding:20px 24px 40px;"
+    style="position:absolute; bottom:0; left:0; right:0; z-index:90; background:#F2EDE7; border-top:1px solid rgba(26,26,26,0.06); border-radius:24px 24px 0 0; padding:20px 24px 40px;"
   >
-    <view style="width:36px; height:4px; border-radius:2px; background:rgba(255,255,255,0.12); margin:0 auto 16px;"></view>
-    <view class="text-text font-semibold text-center" style="font-size:14px; letter-spacing:0.05em; margin-bottom:16px;">{{sheetAuthor}}</view>
+    <view style="width:36px; height:4px; border-radius:2px; background:rgba(26,26,26,0.1); margin:0 auto 16px;"></view>
+    <view style="font-size:16px; font-weight:900; color:#1A1A1A; text-align:center; margin-bottom:16px;">{{sheetAuthor}}</view>
     <view style="display:flex; flex-direction:column; gap:8px;">
       <block wx:for="{{sheetBooks}}" wx:key="bookIndex">
         <view
-          style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-radius:14px; background:rgba(255,255,255,0.03); border:1px solid rgba(52,211,153,0.08);"
+          style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-radius:16px; background:rgba(26,26,26,0.03);"
           catchtap="onSheetBookTap"
           data-book-index="{{item.bookIndex}}"
         >
           <view>
-            <view class="text-text" style="font-size:14px;">《{{item.title}}》</view>
-            <view class="text-text-dim" style="font-size:11px; margin-top:2px;">{{item.sentenceCount}} 句</view>
+            <view style="font-size:14px; font-weight:700; color:#1A1A1A;">《{{item.title}}》</view>
+            <view style="font-size:11px; color:rgba(26,26,26,0.3); margin-top:2px;">{{item.sentenceCount}} 句</view>
           </view>
-          <text style="font-size:14px; color:rgba(52,211,153,0.3); font-weight:300;">›</text>
+          <text style="font-size:16px; color:rgba(26,26,26,0.2); font-weight:300;">›</text>
         </view>
       </block>
     </view>

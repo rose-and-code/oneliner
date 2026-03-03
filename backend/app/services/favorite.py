@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from app.entities.favorite import Favorite
+from app.services.book import get_sentence_by_id
 from app.types.schemas import FavoriteListItem
 from app.types.schemas import PaginatedResponse
 
@@ -38,12 +39,32 @@ async def get_user_favorites(
         .limit(page_size)
     )
 
-    items = [
-        FavoriteListItem(
-            id=fav.id, sentence_id=fav.sentence_id, created_at=fav.created_at
+    items = []
+    for fav in favorites:
+        sentence = get_sentence_by_id(str(fav.sentence_id))
+        book_title = ""
+        book_author = ""
+        if sentence:
+            from app.services.book import _books
+            for b in _books:
+                if b["id"] == sentence.get("book_id"):
+                    book_title = b["title"]
+                    book_author = b["author"]
+                    break
+        items.append(
+            FavoriteListItem(
+                id=fav.id,
+                sentence_id=fav.sentence_id,
+                text=sentence["text"] if sentence else "",
+                context_before=sentence.get("context_before", "") if sentence else "",
+                context_after=sentence.get("context_after", "") if sentence else "",
+                book_title=book_title,
+                book_author=book_author,
+                chapter=sentence.get("chapter", "") if sentence else "",
+                themes=sentence.get("themes", []) if sentence else [],
+                created_at=fav.created_at,
+            )
         )
-        for fav in favorites
-    ]
 
     return PaginatedResponse(
         items=items,

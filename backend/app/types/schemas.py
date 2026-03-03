@@ -70,6 +70,7 @@ class SentenceResponse(BaseModel):
     opposite_quotes: list[RelatedQuote] = []
     sort_order: int
     is_favorited: bool = False
+    themes: list[str] = []
 
 
 class BookWithSentencesResponse(BaseModel):
@@ -88,4 +89,48 @@ class FavoriteResponse(BaseModel):
 class FavoriteListItem(BaseModel):
     id: UUID
     sentence_id: UUID
+    text: str = ""
+    context_before: str = ""
+    context_after: str = ""
+    book_title: str = ""
+    book_author: str = ""
+    chapter: str = ""
+    themes: list[str] = []
     created_at: datetime
+
+
+class AgentReplyResponse(BaseModel):
+    id: UUID
+    hook: str
+    body: str
+    target_sentence_id: UUID | None = None
+    reaction_options: list[str] = []
+    reaction: str | None = None
+    created_at: datetime
+
+
+class AgentReplyListResponse(BaseModel):
+    items: list[AgentReplyResponse]
+
+
+class ReactionRequest(BaseModel):
+    reaction: str
+
+    @field_validator("reaction")
+    @classmethod
+    def validate_reaction(cls, v: str) -> str:
+        if not v or len(v.strip()) == 0 or len(v) > 20:
+            raise ValueError("回应内容 1-20 字符")
+        return v.strip()
+
+
+class NotificationPayload(BaseModel):
+    has_unread_reply: bool = False
+    reply_id: UUID | None = None
+    reply_hook: str | None = None
+
+
+class CheckReplyResponse(BaseModel):
+    has_unread_reply: bool
+    reply_id: UUID | None = None
+    reply_hook: str | None = None

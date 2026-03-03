@@ -81,6 +81,7 @@ def get_all_books_with_sentences(
                     ],
                     sort_order=s["sort_order"],
                     is_favorited=str(s["id"]) in favorited,
+                    themes=s.get("themes", []),
                 )
                 for s in b["sentences"]
             ],

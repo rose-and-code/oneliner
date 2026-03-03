@@ -1,4 +1,5 @@
 import { API_BASE } from './constants'
+import { handleNotificationFromResponse, resetHeartbeat } from '../services/garden'
 
 interface RequestOptions {
   url: string
@@ -7,9 +8,6 @@ interface RequestOptions {
   needAuth?: boolean
 }
 
-/**
- * 统一请求封装，自动注入 token
- */
 export function request<T>(options: RequestOptions): Promise<T> {
   const { url, method = 'GET', data, needAuth = false } = options
   const header: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -35,6 +33,10 @@ export function request<T>(options: RequestOptions): Promise<T> {
           return
         }
         if (res.statusCode >= 200 && res.statusCode < 300) {
+          if (needAuth && res.data && typeof res.data === 'object') {
+            handleNotificationFromResponse(res.data as Record<string, unknown>)
+            resetHeartbeat()
+          }
           resolve(res.data as T)
         } else {
           reject(new Error(`请求失败: ${res.statusCode}`))

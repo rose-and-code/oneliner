@@ -53,8 +53,8 @@ export function isLoggedIn(): boolean {
 
 export function updateProfile(nickname: string, avatarUrl: string): Promise<void> {
   return request<void>({
-    url: '/api/auth/me',
-    method: 'PUT',
+    url: '/api/auth/me/update',
+    method: 'POST',
     data: { nickname, avatar_url: avatarUrl },
     needAuth: true,
   })

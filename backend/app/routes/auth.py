@@ -5,6 +5,7 @@ from fastapi import Depends
 from fastapi import HTTPException
 
 from app.entities.user import User
+from app.services.auth import dev_login
 from app.services.auth import wechat_login
 from app.types.schemas import TokenResponse
 from app.types.schemas import UpdateProfileRequest
@@ -23,6 +24,16 @@ async def login(req: WechatLoginRequest):
         token, user = await wechat_login(req.code)
     except ValueError as e:
         raise HTTPException(status_code=400, detail="微信登录失败") from e
+    return TokenResponse(token=token, user_id=user.id)
+
+
+@router.post("/dev-login", response_model=TokenResponse)
+async def dev_login_route():
+    """开发环境快捷登录，仅 dev 环境可用"""
+    try:
+        token, user = await dev_login()
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
     return TokenResponse(token=token, user_id=user.id)
 
 

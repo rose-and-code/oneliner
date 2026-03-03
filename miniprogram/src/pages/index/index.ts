@@ -2,10 +2,17 @@ import type { BookWithSentences, Sentence } from '../../types/index'
 import { fetchAllBooks } from '../../services/sentences'
 import { toggleBookmark } from '../../services/bookmarks'
 import { isLoggedIn } from '../../services/auth'
+import { trackDwell, trackContextOpen, trackFlip, flushEvents } from '../../services/events'
+import { fetchSprout, markSproutShown, setNotificationCallback, startHeartbeat, stopHeartbeat, markReplyRead } from '../../services/garden'
+import type { NotificationPayload } from '../../types/index'
+import { FLIP_DURATION_MS } from '../../utils/constants'
+import { loadGardenState, updateThemeCounts, shouldTriggerSeedEcho, markSeedEchoTriggered, generateSeedEcho, resetSessionEchoCount } from '../../utils/garden'
+import type { GardenState } from '../../utils/garden'
 
 const worklet = wx.worklet || {}
 const { shared, timing, repeat, sequence, Easing } = worklet
 const isSkyline = typeof shared === 'function'
+
 
 interface JumpHistoryEntry {
   bookIndex: number
@@ -38,6 +45,11 @@ interface IndexData {
   showSheet: boolean
   sheetAuthor: string
   sheetBooks: SheetBook[]
+  currentFontSize: number
+  showBookOverlay: boolean
+  overlayBookTitle: string
+  overlayBookAuthor: string
+  overlayBookCount: number
 }
 
 function buildArray(count: number): number[] {
@@ -46,7 +58,34 @@ function buildArray(count: number): number[] {
   return arr
 }
 
-const UNDERLINE_ROWS = buildArray(10)
+function calcFontSize(textLen: number): number {
+  if (textLen <= 20) return 24
+  if (textLen <= 40) return 20
+  if (textLen <= 60) return 17
+  return 15
+}
+
+const CARD_ILLUSTRATIONS = [
+  '/assets/illustrations/mascot.png',
+  '/assets/illustrations/doodle-groovy.svg',
+  '/assets/illustrations/doodle-reading.svg',
+  '/assets/illustrations/mushroom.svg',
+  '/assets/illustrations/teacup.svg',
+  '/assets/illustrations/bloom.svg',
+]
+
+const OVERLAY_ILLUSTRATIONS = [
+  '/assets/illustrations/doodle-levitate.svg',
+  '/assets/illustrations/hole.svg',
+  '/assets/illustrations/keyhole.svg',
+]
+
+const FLIP_ILLUSTRATIONS = [
+  '/assets/illustrations/key.svg',
+  '/assets/illustrations/roots.svg',
+  '/assets/illustrations/sparkle.svg',
+  '/assets/illustrations/card.svg',
+]
 
 Page({
   data: {
@@ -65,19 +104,62 @@ Page({
     tabIndex: 0,
     hintVertical: true,
     hintHorizontal: false,
-    underlineRows: UNDERLINE_ROWS,
+    currentFontSize: 17,
+    cardIllustration: CARD_ILLUSTRATIONS[0],
+    flipIllustration: FLIP_ILLUSTRATIONS[0],
     hasHistory: false,
     showSheet: false,
     sheetAuthor: '',
     sheetBooks: [],
     flipSq: {} as Record<string, unknown>,
     flipOq: {} as Record<string, unknown>,
+    sproutText: '',
+    sproutId: '',
+    sproutTargetId: '',
+    showSprout: false,
+    showBookOverlay: false,
+    overlayBookTitle: '',
+    overlayBookAuthor: '',
+    overlayBookCount: 0,
+    overlayIllustration: OVERLAY_ILLUSTRATIONS[0],
+    seedEchoText: '',
+    seedEchoVisible: false,
+    toastVisible: false,
+    toastHook: '',
+    toastReplyId: '',
   } as IndexData,
 
   jumpHistory: [] as JumpHistoryEntry[],
+  dwellStart: 0,
+  gardenState: null as GardenState | null,
+  seedEchoTimer: 0,
+  seedDotVal: null as ReturnType<typeof shared<number>> | null,
+  seedEchoVal: null as ReturnType<typeof shared<number>> | null,
+  _seedSharedStart: null as { x: ReturnType<typeof shared<number>>; y: ReturnType<typeof shared<number>>; dx: ReturnType<typeof shared<number>>; dy: ReturnType<typeof shared<number>> } | null,
+  seedDotBound: false,
+  seedEchoBound: false,
+  toastTimer: 0,
 
   onLoad() {
+    wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })
+    this.gardenState = loadGardenState()
+    this.gardenState = resetSessionEchoCount(this.gardenState)
+    setNotificationCallback((payload: NotificationPayload) => {
+      this.showToastNotification(payload)
+    })
     this.loadData()
+  },
+
+  onShareAppMessage(): WechatMiniprogram.Page.ICustomShareContent {
+    const s = this.data.currentSentence
+    const title = s ? s.text.slice(0, 30) + (s.text.length > 30 ? '...' : '') : 'OneLiner'
+    return { title, path: '/pages/index/index' }
+  },
+
+  onShareTimeline(): WechatMiniprogram.Page.ICustomTimelineContent {
+    const s = this.data.currentSentence
+    const title = s ? s.text.slice(0, 30) + (s.text.length > 30 ? '...' : '') : 'OneLiner'
+    return { title }
   },
 
   onShow() {
@@ -91,6 +173,39 @@ Page({
       const pos = this.findSentencePosition(sid)
       if (pos) this.jumpTo(pos.bookIndex, pos.sentenceIndex)
     }
+    this.checkSprout()
+    if (isLoggedIn()) startHeartbeat()
+  },
+
+  async checkSprout() {
+    if (!isLoggedIn()) return
+    const sprout = await fetchSprout()
+    if (!sprout) return
+    this.setData({
+      sproutText: sprout.text,
+      sproutId: sprout.id,
+      sproutTargetId: sprout.target_sentence_id || '',
+      showSprout: true,
+    })
+    markSproutShown(sprout.id)
+    setTimeout(() => {
+      this.setData({ showSprout: false })
+    }, 6000)
+  },
+
+  onTapSprout() {
+    if (!this.data.sproutTargetId) return
+    const pos = this.findSentencePosition(this.data.sproutTargetId)
+    if (pos) {
+      this.setData({ showSprout: false })
+      this.jumpTo(pos.bookIndex, pos.sentenceIndex)
+    }
+  },
+
+  onHide() {
+    this.reportDwell()
+    flushEvents()
+    stopHeartbeat()
   },
 
   async loadData() {
@@ -116,12 +231,50 @@ Page({
         s.oq = oq[0] || {}
       }
     }
+    const isFirst = this.data.books.length === 0
     this.setData({ books, loading: false })
+    if (isFirst) {
+      const bi = Math.floor(Math.random() * books.length)
+      const si = Math.floor(Math.random() * books[bi].sentences.length)
+      this.setData({ bookIndex: bi, sentenceIndex: si })
+    }
     this.syncHeader()
     this.setupHintAnimations()
+    setTimeout(() => this.setupFlipAnimation(), 100)
+    setTimeout(() => this.setupSeedDotAnimation(), 200)
   },
 
   hintVal: null as ReturnType<typeof shared<number>> | null,
+  flipVal: null as ReturnType<typeof shared<number>> | null,
+  flipAnimating: false,
+  flipAnimBound: false,
+
+  resetFlip() {
+    this.flipAnimating = false
+    this.flipAnimBound = false
+    if (this.flipVal) this.flipVal.value = 0
+    setTimeout(() => this.setupFlipAnimation(), 100)
+  },
+
+  setupFlipAnimation() {
+    if (!isSkyline || this.flipAnimBound) return
+    this.flipAnimBound = true
+    const fv = shared(0)
+    this.flipVal = fv
+
+    this.applyAnimatedStyle('#card-front', () => {
+      'worklet'
+      const v = fv.value
+      const s = v <= 0.5 ? 1 - v * 2 : 0
+      return { transform: `scaleX(${s})`, opacity: s < 0.01 ? 0 : 1 }
+    })
+    this.applyAnimatedStyle('#card-back', () => {
+      'worklet'
+      const v = fv.value
+      const s = v >= 0.5 ? (v - 0.5) * 2 : 0
+      return { transform: `scaleX(${s})`, opacity: s < 0.01 ? 0 : 1 }
+    })
+  },
 
   setupHintAnimations() {
     if (!isSkyline) return
@@ -155,7 +308,21 @@ Page({
     })
   },
 
+  reportDwell() {
+    if (!this.dwellStart) return
+    const elapsed = Date.now() - this.dwellStart
+    const { books, bookIndex, sentenceIndex } = this.data
+    const book = books[bookIndex]
+    if (book) {
+      const s = book.sentences[sentenceIndex]
+      if (s) trackDwell(s.id, book.book.id, elapsed)
+    }
+    this.dwellStart = 0
+  },
+
   syncHeader() {
+    this.reportDwell()
+    this.dwellStart = Date.now()
     const { books, bookIndex, sentenceIndex } = this.data
     const book = books[bookIndex]
     if (!book) return
@@ -172,20 +339,40 @@ Page({
       currentAuthorMultiBook: authorCount > 1,
       totalSentences: book.sentences.length,
       progressDots: buildArray(book.sentences.length),
+      currentFontSize: calcFontSize(sentence.text.length),
+      cardIllustration: CARD_ILLUSTRATIONS[(bookIndex * 7 + sentenceIndex) % CARD_ILLUSTRATIONS.length],
+      flipIllustration: FLIP_ILLUSTRATIONS[(bookIndex + sentenceIndex) % FLIP_ILLUSTRATIONS.length],
     })
   },
+
+  bookOverlayTimer: 0,
 
   onBookChange(e: WechatMiniprogram.SwiperChange) {
     if (e.detail.source !== 'touch') return
     if (this.data.hintHorizontal) this.setData({ hintHorizontal: false })
     const newIndex = e.detail.current
     if (newIndex === this.data.bookIndex) return
+    const book = this.data.books[newIndex]
+    if (book) {
+      if (this.bookOverlayTimer) clearTimeout(this.bookOverlayTimer)
+      this.setData({
+        showBookOverlay: true,
+        overlayBookTitle: '《' + book.book.title + '》',
+        overlayBookAuthor: book.book.author,
+        overlayBookCount: book.sentences.length,
+        overlayIllustration: OVERLAY_ILLUSTRATIONS[newIndex % OVERLAY_ILLUSTRATIONS.length],
+      })
+      this.bookOverlayTimer = setTimeout(() => {
+        this.setData({ showBookOverlay: false })
+      }, 800) as unknown as number
+    }
     this.setData({
       bookIndex: newIndex,
       sentenceIndex: 0,
       contextOpen: false,
       isFlipped: false,
     })
+    this.resetFlip()
     this.syncHeader()
   },
 
@@ -199,52 +386,87 @@ Page({
     if (bIdx !== this.data.bookIndex) return
     const newIndex = e.detail.current
     if (newIndex === this.data.sentenceIndex) return
+    if (this.data.showSprout) this.setData({ showSprout: false })
     this.setData({
       sentenceIndex: newIndex,
       contextOpen: false,
       isFlipped: false,
     })
+    this.resetFlip()
     this.syncHeader()
   },
 
   onTapSentence() {
     if (this.data.isFlipped) return
-    this.setData({ contextOpen: !this.data.contextOpen })
+    const opening = !this.data.contextOpen
+    this.setData({ contextOpen: opening })
+    if (opening) {
+      const { books, bookIndex, sentenceIndex } = this.data
+      const book = books[bookIndex]
+      if (book) trackContextOpen(book.sentences[sentenceIndex].id, book.book.id)
+    }
   },
 
-  onTapFlip() {
-    const { books, bookIndex, sentenceIndex } = this.data
-    const s = books[bookIndex].sentences[sentenceIndex]
-    const rawSq = s.similar_quotes && s.similar_quotes.length > 0 ? s.similar_quotes[0] : null
-    const rawOq = s.opposite_quotes && s.opposite_quotes.length > 0 ? s.opposite_quotes[0] : null
+  enrichQuote(q: Record<string, unknown> | null): Record<string, unknown> {
+    if (!q) return {}
+    const { books } = this.data
     const titleSet: Record<string, boolean> = {}
     const authorCount: Record<string, number> = {}
     for (let i = 0; i < books.length; i++) {
       titleSet[books[i].book.title] = true
       authorCount[books[i].book.author] = (authorCount[books[i].book.author] || 0) + 1
     }
-    const enrich = (q: Record<string, unknown> | null): Record<string, unknown> => {
-      if (!q) return {}
-      return {
-        text: q.text,
-        book_title: q.book_title,
-        book_author: q.book_author,
-        sentence_id: q.sentence_id || null,
-        book_found: titleSet[q.book_title as string] || false,
-        author_multi_book: (authorCount[q.book_author as string] || 0) > 1,
-      }
+    return {
+      text: q.text,
+      book_title: q.book_title,
+      book_author: q.book_author,
+      sentence_id: q.sentence_id || null,
+      book_found: titleSet[q.book_title as string] || false,
+      author_multi_book: (authorCount[q.book_author as string] || 0) > 1,
     }
+  },
+
+  onTapFlip() {
+    if (this.flipAnimating) return
+    const { books, bookIndex, sentenceIndex } = this.data
+    const s = books[bookIndex].sentences[sentenceIndex]
+    trackFlip(s.id, books[bookIndex].book.id)
+    const rawSq = s.similar_quotes && s.similar_quotes.length > 0 ? s.similar_quotes[0] : null
+    const rawOq = s.opposite_quotes && s.opposite_quotes.length > 0 ? s.opposite_quotes[0] : null
+
     this.setData({
       isFlipped: true,
-      flipSq: enrich(rawSq as Record<string, unknown> | null),
-      flipOq: enrich(rawOq as Record<string, unknown> | null),
+      flipSq: this.enrichQuote(rawSq as Record<string, unknown> | null),
+      flipOq: this.enrichQuote(rawOq as Record<string, unknown> | null),
     })
+
+    if (!isSkyline) return
+
+    this.flipAnimating = true
+    const fv = this.flipVal
+    if (fv) {
+      fv.value = timing(1, { duration: FLIP_DURATION_MS, easing: Easing.inOut(Easing.ease) })
+    }
+    setTimeout(() => { this.flipAnimating = false }, FLIP_DURATION_MS)
   },
 
   onTapBack() {
-    if (this.data.isFlipped) {
+    if (!this.data.isFlipped || this.flipAnimating) return
+
+    if (!isSkyline) {
       this.setData({ isFlipped: false, contextOpen: false })
+      return
     }
+
+    this.flipAnimating = true
+    const fv = this.flipVal
+    if (fv) {
+      fv.value = timing(0, { duration: FLIP_DURATION_MS, easing: Easing.inOut(Easing.ease) })
+    }
+    setTimeout(() => {
+      this.setData({ isFlipped: false, contextOpen: false })
+      this.flipAnimating = false
+    }, FLIP_DURATION_MS)
   },
 
   findSentencePosition(sentenceId: string): { bookIndex: number; sentenceIndex: number } | null {
@@ -271,6 +493,7 @@ Page({
       contextOpen: false,
       hasHistory: true,
     })
+    this.resetFlip()
     this.syncHeader()
   },
 
@@ -292,6 +515,8 @@ Page({
       contextOpen: false,
       hasHistory: this.jumpHistory.length > 0,
     })
+    this.resetFlip()
+    if (prev.isFlipped && this.flipVal) this.flipVal.value = 1
     this.syncHeader()
   },
 
@@ -348,6 +573,107 @@ Page({
     return false
   },
 
+  seedStartX: 0,
+  seedStartY: 0,
+  seedEndX: 0,
+  seedEndY: 0,
+
+  setupSeedDotAnimation() {
+    if (!isSkyline || this.seedDotBound) return
+    this.seedDotBound = true
+    const sv = shared(0)
+    this.seedDotVal = sv
+    const startX = shared(0)
+    const startY = shared(0)
+    const deltaX = shared(0)
+    const deltaY = shared(0)
+    this._seedSharedStart = { x: startX, y: startY, dx: deltaX, dy: deltaY }
+    this.applyAnimatedStyle('#seed-dot', () => {
+      'worklet'
+      const p = sv.value
+      const x = startX.value + deltaX.value * p
+      const yProgress = p * p
+      const y = startY.value + deltaY.value * yProgress
+      const fade = p < 0.85 ? 1 : 1 - (p - 0.85) / 0.15
+      return { transform: `translate(${x}px, ${y}px)`, opacity: fade }
+    })
+  },
+
+  measureSeedPath() {
+    const query = this.createSelectorQuery()
+    query.select('#tab-garden').boundingClientRect()
+    query.exec((res: Array<WechatMiniprogram.BoundingClientRectCallbackResult>) => {
+      if (res && res[0]) {
+        this.seedEndX = res[0].left + res[0].width / 2
+        this.seedEndY = res[0].top
+      }
+    })
+  },
+
+  setupSeedEchoAnimation() {
+    if (!isSkyline || this.seedEchoBound) return
+    this.seedEchoBound = true
+    const ev = shared(0)
+    this.seedEchoVal = ev
+    this.applyAnimatedStyle('#seed-echo', () => {
+      'worklet'
+      return { transform: `translateY(${(1 - ev.value) * 8}px)`, opacity: ev.value }
+    })
+  },
+
+  triggerSeedDot() {
+    if (!isSkyline) return
+    if (!this.seedDotBound) this.setupSeedDotAnimation()
+    const sv = this.seedDotVal
+    if (!sv) return
+    const query = this.createSelectorQuery()
+    query.select('.bookmark-btn').boundingClientRect()
+    query.select('#tab-garden').boundingClientRect()
+    query.exec((res: Array<WechatMiniprogram.BoundingClientRectCallbackResult>) => {
+      if (!res || !res[0] || !res[1]) return
+      const btn = res[0]
+      const tab = res[1]
+      const sx = btn.left + btn.width / 2 - 3
+      const sy = btn.top + btn.height / 2 - 3
+      const ex = tab.left + tab.width / 2 - 3
+      const ey = tab.top - 3
+      const s = this._seedSharedStart
+      if (s) {
+        s.x.value = sx
+        s.y.value = sy
+        s.dx.value = ex - sx
+        s.dy.value = ey - sy
+      }
+      sv.value = 0
+      sv.value = timing(1, { duration: 650, easing: Easing.in(Easing.quad) })
+    })
+  },
+
+  showSeedEcho(text: string) {
+    if (this.seedEchoTimer) clearTimeout(this.seedEchoTimer)
+    this.setData({ seedEchoText: text, seedEchoVisible: true })
+    if (!this.seedEchoBound) {
+      setTimeout(() => this.setupSeedEchoAnimation(), 50)
+    }
+    setTimeout(() => {
+      const ev = this.seedEchoVal
+      if (ev && isSkyline) {
+        ev.value = 0
+        ev.value = timing(1, { duration: 400, easing: Easing.out(Easing.ease) })
+      }
+    }, 100)
+    this.seedEchoTimer = setTimeout(() => {
+      const ev = this.seedEchoVal
+      if (ev && isSkyline) {
+        ev.value = timing(0, { duration: 600, easing: Easing.in(Easing.ease) })
+      }
+      setTimeout(() => {
+        this.setData({ seedEchoVisible: false, seedEchoText: '' })
+        this.seedEchoBound = false
+      }, 650)
+    }, 2500) as unknown as number
+  },
+
   async onTapBookmark(e: WechatMiniprogram.TouchEvent) {
     const dataset = (e.currentTarget as unknown as { dataset: { sentenceId: string; bookIdx: number; sentenceIdx: number } }).dataset
     if (!dataset.sentenceId) return
@@ -355,11 +681,81 @@ Page({
     const res = await toggleBookmark(dataset.sentenceId)
     const key = `books[${dataset.bookIdx}].sentences[${dataset.sentenceIdx}].is_bookmarked`
     this.setData({ [key]: res.is_bookmarked, 'currentSentence.is_bookmarked': res.is_bookmarked })
-    wx.showToast({ title: res.is_bookmarked ? '已收藏' : '已取消', icon: 'none', duration: 1000 })
+    if (res.is_bookmarked) {
+      wx.vibrateShort({ type: 'light' })
+      this.triggerSeedDot()
+      if (!this.gardenState) this.gardenState = loadGardenState()
+      const sentence = this.data.currentSentence
+      const themes = sentence && sentence.themes ? sentence.themes : []
+      this.gardenState = updateThemeCounts(this.gardenState, themes)
+      if (shouldTriggerSeedEcho(this.gardenState)) {
+        const bookmarks = this.collectCurrentBookmarks()
+        const echoText = generateSeedEcho(this.gardenState, sentence as import('../../types/index').Sentence, bookmarks)
+        if (echoText) {
+          this.gardenState = markSeedEchoTriggered(this.gardenState)
+          this.showSeedEcho(echoText)
+        }
+      }
+    } else {
+      wx.showToast({ title: '已取消', icon: 'none', duration: 800 })
+    }
+  },
+
+  collectCurrentBookmarks(): import('../../types/index').BookmarkItem[] {
+    const result: import('../../types/index').BookmarkItem[] = []
+    const { books } = this.data
+    for (let i = 0; i < books.length; i++) {
+      for (let j = 0; j < books[i].sentences.length; j++) {
+        const s = books[i].sentences[j]
+        if (s.is_bookmarked) {
+          result.push({
+            id: s.id,
+            sentence_id: s.id,
+            text: s.text,
+            context_before: s.context_before,
+            context_after: s.context_after,
+            book_title: books[i].book.title,
+            book_author: books[i].book.author,
+            chapter: s.chapter,
+            similar_quotes: s.similar_quotes,
+            opposite_quotes: s.opposite_quotes,
+            themes: s.themes || [],
+            created_at: '',
+          })
+        }
+      }
+    }
+    return result
+  },
+
+  showToastNotification(payload: NotificationPayload) {
+    if (!payload.has_unread_reply || !payload.reply_hook) return
+    if (this.data.toastVisible) return
+    if (this.toastTimer) clearTimeout(this.toastTimer)
+    this.setData({
+      toastVisible: true,
+      toastHook: payload.reply_hook,
+      toastReplyId: payload.reply_id || '',
+    })
+    this.toastTimer = setTimeout(() => {
+      this.setData({ toastVisible: false })
+    }, 4000) as unknown as number
+  },
+
+  onTapToast() {
+    if (this.toastTimer) clearTimeout(this.toastTimer)
+    const replyId = this.data.toastReplyId
+    this.setData({ toastVisible: false })
+    if (replyId) markReplyRead(replyId)
+    wx.navigateTo({ url: '/pages/mine/mine' })
   },
 
   goToMine() {
     wx.navigateTo({ url: '/pages/mine/mine' })
+  },
+
+  goToProfile() {
+    wx.navigateTo({ url: '/pages/profile/profile' })
   },
 
   jumpToSentenceId(sentenceId: string) {
@@ -371,6 +767,7 @@ Page({
       isFlipped: false,
       contextOpen: false,
     })
+    this.resetFlip()
     this.syncHeader()
   },
 })

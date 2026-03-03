@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100" fill="none">
+<line x1="10" y1="20" x2="130" y2="20" stroke="#1A1A1A" stroke-width="2" stroke-dasharray="6 4"/>
+<path d="M40 20C40 20 38 35 35 50C32 65 25 80 20 90" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M40 20C40 20 44 40 50 55C56 70 62 78 65 85" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M70 20C70 20 68 38 72 55C76 72 82 82 88 90" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M100 20C100 20 98 35 95 48C92 61 88 68 95 78" stroke="#1A1A1A" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M35 50C28 52 22 48 18 52" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M50 55C56 58 60 65 55 70" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M72 55C78 50 85 52 88 58" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round"/>
+<circle cx="40" cy="12" r="4" stroke="#1A1A1A" stroke-width="2.5" fill="none"/>
+<path d="M40 8L40 2L44 5" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="70" cy="12" r="4" stroke="#1A1A1A" stroke-width="2.5" fill="none"/>
+<path d="M70 8L72 2" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round"/>
+<circle cx="100" cy="12" r="4" stroke="#1A1A1A" stroke-width="2.5" fill="none"/>
+<path d="M100 8L98 3L103 5" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

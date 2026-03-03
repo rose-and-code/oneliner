@@ -7,7 +7,9 @@ from tortoise.contrib.fastapi import RegisterTortoise
 from app.config import TORTOISE_ORM
 from app.routes.auth import router as auth_router
 from app.routes.books import router as books_router
+from app.routes.events import router as events_router
 from app.routes.favorites import router as favorites_router
+from app.routes.garden import router as garden_router
 from app.services.book import load_books
 
 
@@ -30,7 +32,9 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(books_router)
+app.include_router(events_router)
 app.include_router(favorites_router)
+app.include_router(garden_router)
 
 
 @app.get("/")

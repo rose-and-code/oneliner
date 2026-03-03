@@ -1,92 +1,149 @@
-<view class="flex flex-col w-full bg-bg relative" style="height:100vh; overflow:hidden;">
-  <view class="absolute inset-0 pointer-events-none overflow-hidden">
-    <view class="absolute rounded-full" style="width:280px; height:280px; background:rgba(52,211,153,0.04); top:10%; right:-40px;"></view>
-    <view class="absolute rounded-full" style="width:320px; height:320px; background:rgba(240,160,80,0.03); bottom:10%; left:-60px;"></view>
+<view class="flex flex-col w-full relative" style="height:100vh; overflow:hidden; background:#F2EDE7;">
+
+  <view style="padding:56px 20px 0; position:relative; z-index:10;">
+    <view class="flex items-center" style="justify-content:space-between;">
+      <view style="width:40px;"></view>
+      <view style="display:flex; align-items:center; gap:6px;">
+        <image src="/assets/illustrations/leaf.svg" style="width:20px; height:20px; opacity:0.3;" mode="aspectFit" />
+        <text style="font-size:16px; font-weight:900; color:#1A1A1A;">花园</text>
+      </view>
+      <view style="width:40px;"></view>
+    </view>
   </view>
 
-  <view style="padding-top:56px; padding-left:20px; padding-right:20px; position:relative; z-index:10;">
-    <view class="flex items-center" style="justify-content:space-between;">
-      <view
-        class="flex items-center"
-        style="padding:6px 12px; border-radius:16px; background:rgba(255,255,255,0.06); border:1px solid rgba(52,211,153,0.12);"
-        bindtap="goToIndex"
-      >
-        <text style="font-size:13px; font-weight:300; color:#9AADA2;">‹</text>
-        <text style="font-size:11px; color:#9AADA2; letter-spacing:0.05em; margin-left:4px;">返回</text>
-      </view>
+  <view wx:if="{{!empty && !loading && !needLogin}}" style="margin:16px 20px 0; padding:16px 18px; border-radius:16px; background:rgba(76,140,100,0.05); border:1px solid rgba(76,140,100,0.1);">
+    <view style="display:flex; align-items:center; gap:8px;">
+      <text style="font-size:18px;">{{stageIcon}}</text>
+      <text style="font-size:14px; font-weight:600; color:#1A1A1A;">{{stageText}}</text>
     </view>
-    <view wx:if="{{!empty && !loading && !needLogin}}" style="text-align:left; margin-top:16px;">
-      <text class="text-xs text-text-dim">共 {{bookmarks.length}} 条</text>
+    <view wx:if="{{showThemes}}" style="font-size:12px; color:rgba(26,26,26,0.35); margin-top:6px; font-weight:500;">
+      <text>最近在想：{{topThemes[0]}}</text>
+      <text wx:if="{{topThemes[1]}}"> · {{topThemes[1]}}</text>
     </view>
   </view>
 
   <scroll-view
     scroll-y
     type="list"
-    style="flex:1; position:relative; z-index:10; padding:0 20px;"
+    style="height:{{scrollHeight}}px; position:relative; z-index:10; padding:0 20px;"
   >
     <view wx:if="{{needLogin}}" class="flex flex-col items-center justify-center" style="padding:80px 0;">
-      <text style="font-size:36px; margin-bottom:16px;">🔒</text>
-      <text class="text-text-dim text-sm" style="margin-bottom:16px;">登录后查看收藏</text>
+      <image src="/assets/illustrations/keyhole.svg" style="width:80px; height:80px; margin-bottom:20px; opacity:0.4;" mode="aspectFit" />
+      <text style="font-size:14px; color:rgba(26,26,26,0.4); margin-bottom:20px;">登录后查看花园</text>
       <view
-        style="padding:10px 32px; border-radius:20px; background:linear-gradient(135deg,#34D399,#F0A050);"
+        style="padding:12px 32px; border-radius:50px; background:#1A1A1A;"
         bindtap="onTapLogin"
       >
-        <text class="text-white text-sm font-medium">微信登录</text>
+        <text style="color:#F2EDE7; font-size:14px; font-weight:700;">微信登录</text>
       </view>
     </view>
 
     <view wx:elif="{{loading}}" class="flex items-center justify-center" style="padding:80px 0;">
-      <text class="text-text-dim text-sm">加载中...</text>
+      <text style="font-size:14px; color:rgba(26,26,26,0.3);">加载中...</text>
     </view>
 
-    <view wx:elif="{{empty}}" class="flex flex-col items-center justify-center" style="padding:80px 0;">
-      <text style="font-size:36px; margin-bottom:16px;">📚</text>
-      <text class="text-text-dim text-sm" style="margin-bottom:8px;">还没有收藏</text>
-      <text class="text-text-faint text-xs">翻翻时点击 ☆ 收藏击中你的句子</text>
+    <view wx:elif="{{empty && !hasReplies}}" class="flex flex-col items-center justify-center" style="padding:60px 0;">
+      <image src="/assets/illustrations/mascot.png" style="width:100px; height:100px; margin-bottom:20px; opacity:0.5;" mode="aspectFit" />
+      <text style="font-size:14px; color:rgba(26,26,26,0.4); margin-bottom:8px;">还没有种子</text>
+      <text style="font-size:12px; color:rgba(26,26,26,0.2);">翻翻时点击 ♡ 落下第一颗种子</text>
     </view>
 
-    <view wx:else style="padding-bottom:32px;">
-      <view
-        wx:for="{{bookmarks}}"
-        wx:key="id"
-        style="margin-bottom:16px; border-radius:20px; padding:20px; background:rgba(255,255,255,0.035); border:1px solid rgba(52,211,153,0.08); position:relative; overflow:hidden;"
-        bindtap="onTapCard"
-        data-sentence-id="{{item.sentence_id}}"
-      >
-        <view style="position:absolute; top:0; left:20px; right:20px; height:1px; opacity:0.2; background:linear-gradient(90deg,transparent,#34D399,transparent);"></view>
+    <view wx:else style="padding-bottom:32px; margin-top:8px;">
 
-        <view
-          class="flex items-center justify-center"
-          style="position:absolute; right:12px; top:12px; width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.06); border:1px solid rgba(52,211,153,0.1);"
-          catchtap="onTapRemove"
-          data-index="{{index}}"
-        >
-          <text style="font-size:14px;">⭐</text>
+      <view wx:if="{{hasReplies}}" style="margin-bottom:20px;">
+        <view style="display:flex; align-items:center; gap:6px; margin-bottom:12px; padding:0 4px;">
+          <view style="flex:1; height:1px; background:rgba(26,26,26,0.06);"></view>
+          <text style="font-size:11px; font-weight:600; color:rgba(26,26,26,0.2); letter-spacing:0.08em;">花灵的话</text>
+          <view style="flex:1; height:1px; background:rgba(26,26,26,0.06);"></view>
         </view>
 
-        <text style="font-size:15px; line-height:1.8; color:#E8F0EC; font-weight:300; padding-right:40px; display:block;">{{item.text}}</text>
+        <block wx:for="{{replies}}" wx:key="id">
+          <view style="margin-bottom:12px; padding:16px 18px; border-radius:16px; background:#FAF7F2; box-shadow:0 1px 3px rgba(26,26,26,0.03);">
+            <text style="font-size:14px; line-height:1.8; color:#1A1A1A; font-weight:500; display:block;">{{item.body}}</text>
 
-        <view class="flex items-center" style="gap:8px; margin-top:12px;">
-          <view style="width:12px; height:1px; background:#2E4A40;"></view>
-          <text class="text-xs tracking-wider text-text-dim">{{item.book_author}}</text>
+            <view wx:if="{{item.target_sentence_id}}" style="margin-top:8px;">
+              <text
+                style="font-size:11px; color:rgba(76,140,100,0.6); font-weight:500;"
+                catchtap="onTapReplyTarget"
+                data-sentence-id="{{item.target_sentence_id}}"
+              >去看看 ›</text>
+            </view>
+
+            <view style="display:flex; align-items:center; justify-content:space-between; margin-top:10px;">
+              <view wx:if="{{!item.reaction}}" style="display:flex; gap:8px;">
+                <view
+                  wx:for="{{item.reaction_options}}"
+                  wx:for-item="opt"
+                  wx:key="*this"
+                  style="padding:4px 14px; border-radius:50px; background:rgba(26,26,26,0.04); font-size:12px; font-weight:500; color:rgba(26,26,26,0.4);"
+                  catchtap="onTapReaction"
+                  data-reply-id="{{item.id}}"
+                  data-reaction="{{opt}}"
+                >{{opt}}</view>
+              </view>
+              <view wx:else style="display:flex; align-items:center; gap:4px;">
+                <text style="font-size:11px; color:rgba(26,26,26,0.15);">✓ {{item.reaction}}</text>
+              </view>
+              <text style="font-size:10px; color:rgba(26,26,26,0.15);">{{item.timeAgo}}</text>
+            </view>
+          </view>
+        </block>
+      </view>
+
+      <view wx:if="{{!empty}}" style="margin-bottom:20px;">
+        <view style="display:flex; align-items:center; gap:6px; margin-bottom:10px; padding:0 4px;">
+          <view style="flex:1; height:1px; background:rgba(26,26,26,0.06);"></view>
+          <text style="font-size:11px; font-weight:600; color:rgba(26,26,26,0.2); letter-spacing:0.08em;">我的种子</text>
+          <view style="flex:1; height:1px; background:rgba(26,26,26,0.06);"></view>
         </view>
 
-        <view style="margin-top:8px;">
-          <text class="text-xs text-text-faint">《{{item.book_title}}》· {{item.chapter}}</text>
-        </view>
+        <block wx:for="{{groups}}" wx:key="bookTitle">
+          <view style="margin-bottom:20px;">
+            <view style="display:flex; align-items:center; gap:6px; margin-bottom:10px; padding:0 4px;">
+              <text style="font-size:13px; font-weight:900; color:#1A1A1A;">《{{item.bookTitle}}》</text>
+              <text style="font-size:11px; color:rgba(26,26,26,0.2); font-weight:500;">{{item.items.length}}</text>
+            </view>
+            <view
+              wx:for="{{item.items}}"
+              wx:for-item="bm"
+              wx:key="id"
+              style="margin-bottom:10px; border-radius:20px; padding:18px; background:#FAF7F2; box-shadow:0 1px 3px rgba(26,26,26,0.03); position:relative; overflow:hidden;"
+              bindtap="onTapCard"
+              data-sentence-id="{{bm.sentence_id}}"
+            >
+              <view
+                class="flex items-center justify-center"
+                style="position:absolute; right:12px; top:12px; width:28px; height:28px; border-radius:50%; background:rgba(26,26,26,0.04);"
+                catchtap="onTapRemove"
+                data-sentence-id="{{bm.sentence_id}}"
+              >
+                <text style="font-size:12px;">♥</text>
+              </view>
+
+              <text style="font-size:14px; line-height:1.8; color:#1A1A1A; font-weight:700; padding-right:36px; display:block;">{{bm.text}}</text>
+
+              <view style="margin-top:10px;">
+                <text style="font-size:10px; color:rgba(26,26,26,0.2);">{{bm.chapter}}</text>
+              </view>
+            </view>
+          </view>
+        </block>
       </view>
     </view>
   </scroll-view>
 
-  <view style="display:flex; align-items:center; justify-content:space-around; padding:8px 0 24px; position:relative; z-index:20; border-top:1px solid rgba(52,211,153,0.06);">
-    <view class="flex flex-col items-center" style="padding:4px 0;" bindtap="goToIndex">
-      <text style="font-size:16px;">📖</text>
-      <text class="text-xs text-text-dim" style="margin-top:2px;">翻翻</text>
+  <view style="display:flex; align-items:center; justify-content:center; gap:32px; padding:10px 0 28px; position:relative; z-index:20; border-top:1px solid rgba(26,26,26,0.06);">
+    <view class="flex flex-col items-center" style="gap:2px;" bindtap="goToIndex">
+      <text style="font-size:18px;">📖</text>
+      <text style="font-size:10px; font-weight:600; color:rgba(26,26,26,0.25);">翻翻</text>
     </view>
-    <view class="flex flex-col items-center" style="padding:4px 0;">
-      <text style="font-size:16px;">⭐</text>
-      <text class="text-xs text-accent font-medium" style="margin-top:2px;">我的</text>
+    <view class="flex flex-col items-center" style="gap:2px;">
+      <text style="font-size:18px;">🌱</text>
+      <text style="font-size:10px; font-weight:600; color:#1A1A1A;">花园</text>
+    </view>
+    <view class="flex flex-col items-center" style="gap:2px;" bindtap="goToProfile">
+      <text style="font-size:18px;">👤</text>
+      <text style="font-size:10px; font-weight:600; color:rgba(26,26,26,0.25);">我的</text>
     </view>
   </view>
 

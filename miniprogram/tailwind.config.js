@@ -4,25 +4,22 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: '#0A0F0E',
-        'bg-card': 'rgba(255, 255, 255, 0.035)',
-        'bg-back': 'rgba(255, 255, 255, 0.025)',
-        text: '#E8F0EC',
-        'text-secondary': '#9AADA2',
-        'text-dim': '#546E64',
-        'text-faint': '#2E4A40',
-        accent: '#34D399',
-        'accent-warm': '#F0A050',
-        'accent-muted': 'rgba(52, 211, 153, 0.14)',
-        'accent-dim': 'rgba(52, 211, 153, 0.07)',
-        divider: 'rgba(52, 211, 153, 0.08)',
+        bg: '#F2EDE7',
+        'bg-card': '#FFFFFF',
+        text: '#1A1A1A',
+        'text-secondary': 'rgba(26, 26, 26, 0.45)',
+        'text-dim': 'rgba(26, 26, 26, 0.3)',
+        'text-faint': 'rgba(26, 26, 26, 0.18)',
+        accent: '#1A1A1A',
+        divider: 'rgba(26, 26, 26, 0.06)',
       },
       borderRadius: {
         card: '20px',
         'card-lg': '28px',
+        pill: '50px',
       },
       fontFamily: {
-        sans: ['"Noto Sans SC"', '-apple-system', '"SF Pro Rounded"', '"PingFang SC"', 'sans-serif'],
+        sans: ['-apple-system', '"SF Pro Rounded"', '"PingFang SC"', '"Noto Sans SC"', 'sans-serif'],
       },
       spacing: {
         safe: 'env(safe-area-inset-bottom, 0px)',

@@ -51,7 +51,7 @@ alwaysApply: true
     - 禁止使用 `filter: blur()` 做背景模糊光斑，Skyline 不渲染该属性；背景装饰改用纯色低透明度圆形
     - 禁止使用 `grid`、`grid-cols-*`、`grid-rows-*` 等 grid 布局，应使用 `flex flex-wrap` 替代
     - 伪元素必须使用双冒号 `::before`、`::after`，不能使用单冒号
-    - 禁止使用 `transform-style: preserve-3d` 和 `backface-visibility: hidden`，Skyline 不支持 CSS 3D 变换；卡片翻面效果必须用 `wx:if` 切换正反面实现
+    - 禁止使用 `transform-style: preserve-3d` 和 `backface-visibility: hidden`，Skyline 不支持 CSS 3D 变换；卡片翻面效果用正反面同时存在 DOM（绝对定位叠放）+ Worklet `scaleX` 动画模拟中轴翻转，禁止用 `wx:if` 分段切换（会导致 DOM 重建卡顿）
     - 禁止使用 `position: fixed`，Skyline 不支持固定定位；底部导航栏等需要固定的元素应作为页面 flex 布局的一部分
     - 禁止使用 `-webkit-background-clip: text` 和 `-webkit-text-fill-color: transparent`，Skyline 不支持文字裁切渐变效果，会退化为渐变色块覆盖文字
     - 禁止使用 `text-decoration: underline` 等文字装饰属性，Skyline 不渲染；需要下划线效果时必须用真实的 `view` 元素模拟
@@ -62,6 +62,7 @@ alwaysApply: true
     - 动态 class 中的三元表达式（如 `class="{{condition ? 'a' : 'b'}}"`）在 Skyline 下不可靠，必须用 `wx:if` / `wx:else` 分支渲染替代
     - Tailwind 生成的部分 class（如 `gap-*`、`flex-1` 嵌套）在 Skyline 下偶发失效；关键布局属性（flex、gap、width、height、position）优先使用 inline style 确保稳定
     - `flex-direction:column` + `justify-content:center` 的容器中，动态插入/移除子元素（如 `wx:if` 切换上下文）会导致其余子元素位置重排；如果某个元素必须保持位置不变，应使用 swiper 或绝对定位方案而非依赖 flex 居中
+    - 禁止使用 `mask-image` / `-webkit-mask-image`，Skyline 不支持 CSS mask；文字渐隐截断效果改用半透明颜色 + `overflow:hidden` + `max-height` 模拟
 14. **自定义 TabBar 限制** - Skyline 下自定义 TabBar 组件（`custom-tab-bar/`）的布局不受控，会脱离预期位置；建议放弃 `app.json` 中的 `tabBar.custom: true`，改为在每个页面底部内嵌导航栏组件，页面间用 `wx.navigateTo` 跳转
 15. **weapp-tailwindcss 插件** - vite 插件的正确导入名为 `UnifiedViteWeappTailwindcssPlugin`（注意 Vite 在前），不是 `UnifiedWeappTailwindcssVitePlugin`；安装后用 `node -e "const m = require('weapp-tailwindcss/vite'); console.log(Object.keys(m))"` 验证导出名
 16. **构建产物同步** - 修改小程序源码后必须执行 `npm run build` 重新构建，开发者工具加载的是 `dist/` 目录而非 `src/`；调试时优先检查 dist 是否为最新版本
@@ -74,6 +75,15 @@ alwaysApply: true
     - 总包大小不能超过 20MB
     - 图片资源应使用 CDN 或云存储，禁止将大图片打包进小程序
     - 第三方库需评估体积，优先选择轻量级方案
+
+## 前后端一致性
+
+1. **API 路径对齐** - 前端 service 文件中的 URL 路径必须与后端 router prefix + 路由路径完全一致；改动任一端时必须同步检查另一端
+2. **字段名对齐** - 前端 interface 中的字段名必须与后端 Pydantic schema 的字段名完全一致；不要在前端做字段名映射（如 `is_favorited` → `is_bookmarked`），而是统一使用同一个名字
+3. **返回结构对齐** - 前端必须正确处理后端返回的数据结构（分页接口返回 `{ items, total, ... }`，不能直接当数组用）
+4. **HTTP 方法对齐** - 前端请求的 HTTP 方法（GET/POST/PUT/DELETE）必须与后端路由注册的方法一致
+5. **dev-login 必须存在** - 开发环境必须提供 `/api/auth/dev-login` 路由，用固定 openid 创建/获取用户，仅 `ENV=dev` 时可用；前端登录失败时自动 fallback 到此路由
+6. **API_BASE 环境切换** - `constants.ts` 中的 `API_BASE` 在本地开发时应为 `http://localhost:8000`，部署时切换为线上地址；提交代码前检查此值
 
 ## 后端规范 (FastAPI)
 

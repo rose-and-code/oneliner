@@ -1,5 +1,8 @@
 {
   "usingComponents": {},
   "navigationStyle": "custom",
-  "renderer": "skyline"
+  "renderer": "skyline",
+  "backgroundColor": "#F2EDE7",
+  "backgroundColorTop": "#F2EDE7",
+  "backgroundColorBottom": "#F2EDE7"
 }

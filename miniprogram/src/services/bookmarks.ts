@@ -1,24 +1,30 @@
 import type { BookmarkItem } from '../types/index'
 import { request } from '../utils/request'
 
-/**
- * 切换收藏状态
- */
+interface ToggleResponse {
+  is_favorited: boolean
+}
+
+interface FavListResponse {
+  items: BookmarkItem[]
+  total: number
+  page: number
+  page_size: number
+  has_more: boolean
+}
+
 export function toggleBookmark(sentenceId: string): Promise<{ is_bookmarked: boolean }> {
-  return request<{ is_bookmarked: boolean }>({
-    url: '/api/bookmarks/toggle',
+  return request<ToggleResponse>({
+    url: '/api/favorites/toggle',
     method: 'POST',
     data: { sentence_id: sentenceId },
     needAuth: true,
-  })
+  }).then((res) => ({ is_bookmarked: res.is_favorited }))
 }
 
-/**
- * 获取收藏列表
- */
 export function fetchBookmarks(): Promise<BookmarkItem[]> {
-  return request<BookmarkItem[]>({
-    url: '/api/bookmarks/list',
+  return request<FavListResponse>({
+    url: '/api/favorites/list',
     needAuth: true,
-  })
+  }).then((res) => res.items)
 }
