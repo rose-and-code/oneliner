@@ -49,10 +49,10 @@ export interface BookmarkItem {
   created_at: string
 }
 
-export interface AgentReplyItem {
+export interface SproutItem {
   id: string
+  text: string
   hook: string
-  body: string
   target_sentence_id: string | null
   reaction_options: string[]
   reaction: string | null
@@ -60,7 +60,7 @@ export interface AgentReplyItem {
 }
 
 export interface NotificationPayload {
-  has_unread_reply: boolean
-  reply_id?: string
-  reply_hook?: string
+  has_unread_sprout: boolean
+  sprout_id?: string
+  sprout_hook?: string
 }

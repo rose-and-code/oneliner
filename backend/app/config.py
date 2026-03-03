@@ -24,7 +24,7 @@ TORTOISE_ORM = {
     "connections": {"default": settings.database_url},
     "apps": {
         "models": {
-            "models": ["app.entities.user", "app.entities.favorite", "app.entities.event", "app.entities.sprout", "app.entities.agent_reply", "aerich.models"],
+            "models": ["app.entities.user", "app.entities.favorite", "app.entities.event", "app.entities.sprout", "aerich.models"],
             "default_connection": "default",
         }
     },

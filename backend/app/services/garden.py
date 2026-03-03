@@ -3,7 +3,6 @@ from datetime import timedelta
 from datetime import timezone
 from uuid import UUID
 
-from app.entities.agent_reply import AgentReply
 from app.entities.event import UserEvent
 from app.entities.favorite import Favorite
 from app.entities.sprout import Sprout
@@ -12,15 +11,15 @@ from app.services.book import get_sentence_by_id
 from app.services.book import _books
 
 
-SPROUT_COOLDOWN_HOURS = 12
 MIN_FAVORITES_FOR_SPROUT = 5
-REPLY_LIST_LIMIT = 20
+SPROUT_COOLDOWN_HOURS = 12
 
-REPLY_INITIAL_COOLDOWN_SECONDS = 30
-REPLY_ACTIVE_COOLDOWN_SECONDS = 180
-REPLY_STABLE_COOLDOWN_SECONDS = 600
-REPLY_LONG_COOLDOWN_SECONDS = 1800
-MIN_EVENTS_FOR_REPLY = 3
+SPROUT_INITIAL_COOLDOWN_SECONDS = 30
+SPROUT_ACTIVE_COOLDOWN_SECONDS = 180
+SPROUT_STABLE_COOLDOWN_SECONDS = 600
+SPROUT_LONG_COOLDOWN_SECONDS = 1800
+MIN_EVENTS_FOR_SPROUT = 3
+SPROUT_LIST_LIMIT = 20
 
 
 async def get_garden_status(user_id: UUID) -> dict:
@@ -37,32 +36,56 @@ async def get_garden_status(user_id: UUID) -> dict:
     }
 
 
-async def get_unshown_sprout(user_id: UUID) -> Sprout:
+async def get_unshown_sprout(user_id: UUID) -> Sprout | None:
     """获取最新的未展示冒芽"""
     return await Sprout.filter(user_id=user_id, shown=False).order_by("-created_at").first()
 
 
-async def mark_sprout_shown(sprout_id: UUID):
-    """标记冒芽已展示"""
-    await Sprout.filter(id=sprout_id).update(shown=True)
+async def mark_sprout_shown(sprout_id: UUID, user_id: UUID):
+    """标记冒芽已展示，并重置 has_unread_sprout"""
+    await Sprout.filter(id=sprout_id, user_id=user_id).update(shown=True)
+    has_more = await Sprout.filter(user_id=user_id, shown=False).exists()
+    if not has_more:
+        await User.filter(id=user_id).update(has_unread_sprout=False)
 
 
-async def should_generate_sprout(user_id: UUID) -> bool:
-    """判断是否应该生成新冒芽"""
+async def should_generate_sprout_on_favorite(user_id: UUID) -> bool:
+    """判断收藏触发时是否应该生成冒芽（低频，12小时冷却）"""
     fav_count = await Favorite.filter(user_id=user_id, is_cancelled=False).count()
     if fav_count < MIN_FAVORITES_FOR_SPROUT:
         return False
-
     unshown = await Sprout.filter(user_id=user_id, shown=False).exists()
     if unshown:
         return False
-
     cutoff = datetime.now(timezone.utc) - timedelta(hours=SPROUT_COOLDOWN_HOURS)
     recent = await Sprout.filter(user_id=user_id, created_at__gte=cutoff).exists()
-    if recent:
+    return not recent
+
+
+async def should_generate_sprout_on_event(user_id: UUID) -> bool:
+    """判断行为事件触发时是否应该生成冒芽（高频，衰减冷却）"""
+    unshown = await Sprout.filter(user_id=user_id, shown=False).exists()
+    if unshown:
+        return False
+    event_count = await UserEvent.filter(user_id=user_id).count()
+    if event_count < MIN_EVENTS_FOR_SPROUT:
         return False
 
-    return True
+    sprout_count = await Sprout.filter(user_id=user_id).count()
+    if sprout_count == 0:
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=SPROUT_INITIAL_COOLDOWN_SECONDS)
+        return await UserEvent.filter(user_id=user_id, created_at__gte=cutoff).exists()
+
+    last_sprout = await Sprout.filter(user_id=user_id).order_by("-created_at").first()
+    if not last_sprout:
+        return True
+    elapsed = (datetime.now(timezone.utc) - last_sprout.created_at).total_seconds()
+
+    if sprout_count <= 2:
+        return elapsed >= SPROUT_ACTIVE_COOLDOWN_SECONDS
+    if sprout_count <= 5:
+        return elapsed >= SPROUT_STABLE_COOLDOWN_SECONDS
+    return elapsed >= SPROUT_LONG_COOLDOWN_SECONDS
 
 
 async def get_user_context(user_id: UUID) -> dict:
@@ -95,19 +118,61 @@ async def get_user_context(user_id: UUID) -> dict:
         events_data.append({
             "event_type": ev.event_type,
             "sentence_text": sentence["text"][:50] if sentence else "",
+            "sentence_id": str(ev.sentence_id) if ev.sentence_id else "",
             "duration_ms": ev.duration_ms or 0,
         })
 
     return {"favorites": fav_data, "events": events_data}
 
 
-async def create_sprout(user_id: UUID, text: str, target_sentence_id: UUID | None = None) -> Sprout:
-    """写入一条冒芽"""
-    return await Sprout.create(
+async def create_sprout(
+    user_id: UUID,
+    text: str,
+    hook: str = "",
+    target_sentence_id: UUID | None = None,
+    reaction_options: list[str] | None = None,
+) -> Sprout:
+    """写入一条冒芽，并标记用户有未读"""
+    sprout = await Sprout.create(
         user_id=user_id,
         text=text,
+        hook=hook or text[:25],
         target_sentence_id=target_sentence_id,
+        reaction_options=reaction_options or [],
     )
+    await User.filter(id=user_id).update(has_unread_sprout=True)
+    return sprout
+
+
+async def check_unread_sprout(user_id: UUID) -> dict | None:
+    """检查用户是否有未读冒芽，返回最新一条的钩子信息"""
+    sprout = await Sprout.filter(user_id=user_id, shown=False).order_by("-created_at").first()
+    if not sprout:
+        return None
+    return {"sprout_id": str(sprout.id), "sprout_hook": sprout.hook or sprout.text[:25]}
+
+
+async def get_notification_payload(user_id: UUID) -> dict:
+    """获取通知载荷，用于注入到 API 响应中"""
+    user = await User.filter(id=user_id).first()
+    if not user or not user.has_unread_sprout:
+        return {"has_unread_sprout": False}
+    info = await check_unread_sprout(user_id)
+    if not info:
+        await User.filter(id=user_id).update(has_unread_sprout=False)
+        return {"has_unread_sprout": False}
+    return {"has_unread_sprout": True, "sprout_id": info["sprout_id"], "sprout_hook": info["sprout_hook"]}
+
+
+async def get_sprout_list(user_id: UUID, limit: int = SPROUT_LIST_LIMIT) -> list[Sprout]:
+    """获取冒芽时间线"""
+    return await Sprout.filter(user_id=user_id).order_by("-created_at").limit(limit)
+
+
+async def submit_sprout_reaction(sprout_id: UUID, user_id: UUID, reaction: str) -> bool:
+    """提交用户对冒芽的回应"""
+    updated = await Sprout.filter(id=sprout_id, user_id=user_id).update(reaction=reaction)
+    return updated > 0
 
 
 def _calc_stage(seed_count: int) -> str:
@@ -135,90 +200,3 @@ async def _calc_top_themes(user_id: UUID) -> list[str]:
             theme_counts[t] = theme_counts.get(t, 0) + 1
     sorted_themes = sorted(theme_counts.items(), key=lambda x: -x[1])
     return [t for t, _ in sorted_themes[:2]]
-
-
-async def should_generate_reply(user_id: UUID) -> bool:
-    """判断是否应该为用户生成新的花灵回复（频率衰减策略）"""
-    unshown = await AgentReply.filter(user_id=user_id, shown=False).exists()
-    if unshown:
-        return False
-
-    event_count = await UserEvent.filter(user_id=user_id).count()
-    if event_count < MIN_EVENTS_FOR_REPLY:
-        return False
-
-    reply_count = await AgentReply.filter(user_id=user_id).count()
-    if reply_count == 0:
-        cutoff = datetime.now(timezone.utc) - timedelta(seconds=REPLY_INITIAL_COOLDOWN_SECONDS)
-        has_recent_event = await UserEvent.filter(user_id=user_id, created_at__gte=cutoff).exists()
-        return has_recent_event
-
-    last_reply = await AgentReply.filter(user_id=user_id).order_by("-created_at").first()
-    if not last_reply:
-        return True
-
-    elapsed = (datetime.now(timezone.utc) - last_reply.created_at).total_seconds()
-
-    if reply_count <= 2:
-        return elapsed >= REPLY_ACTIVE_COOLDOWN_SECONDS
-    if reply_count <= 5:
-        return elapsed >= REPLY_STABLE_COOLDOWN_SECONDS
-    return elapsed >= REPLY_LONG_COOLDOWN_SECONDS
-
-
-async def check_unread_reply(user_id: UUID) -> dict | None:
-    """检查用户是否有未读的花灵回复，返回最新一条的钩子信息"""
-    reply = await AgentReply.filter(user_id=user_id, shown=False).order_by("-created_at").first()
-    if not reply:
-        return None
-    return {"reply_id": str(reply.id), "reply_hook": reply.hook}
-
-
-async def get_notification_payload(user_id: UUID) -> dict:
-    """获取通知载荷，用于注入到 API 响应中"""
-    user = await User.filter(id=user_id).first()
-    if not user or not user.has_unread_reply:
-        return {"has_unread_reply": False}
-    info = await check_unread_reply(user_id)
-    if not info:
-        await User.filter(id=user_id).update(has_unread_reply=False)
-        return {"has_unread_reply": False}
-    return {"has_unread_reply": True, "reply_id": info["reply_id"], "reply_hook": info["reply_hook"]}
-
-
-async def get_reply_list(user_id: UUID, limit: int = REPLY_LIST_LIMIT) -> list[AgentReply]:
-    """获取花灵回复列表"""
-    return await AgentReply.filter(user_id=user_id).order_by("-created_at").limit(limit)
-
-
-async def submit_reaction(reply_id: UUID, user_id: UUID, reaction: str) -> bool:
-    """提交用户对花灵回复的回应"""
-    updated = await AgentReply.filter(id=reply_id, user_id=user_id).update(reaction=reaction)
-    return updated > 0
-
-
-async def mark_reply_read(reply_id: UUID, user_id: UUID):
-    """标记花灵回复已读，并重置 has_unread_reply"""
-    await AgentReply.filter(id=reply_id, user_id=user_id).update(shown=True)
-    has_more = await AgentReply.filter(user_id=user_id, shown=False).exists()
-    if not has_more:
-        await User.filter(id=user_id).update(has_unread_reply=False)
-
-
-async def create_agent_reply(
-    user_id: UUID,
-    hook: str,
-    body: str,
-    target_sentence_id: UUID | None = None,
-    reaction_options: list[str] | None = None,
-) -> AgentReply:
-    """写入一条花灵回复，并标记用户有未读"""
-    reply = await AgentReply.create(
-        user_id=user_id,
-        hook=hook,
-        body=body,
-        target_sentence_id=target_sentence_id,
-        reaction_options=reaction_options or ["确实", "才不是"],
-    )
-    await User.filter(id=user_id).update(has_unread_reply=True)
-    return reply

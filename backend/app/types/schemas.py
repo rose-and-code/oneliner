@@ -99,18 +99,18 @@ class FavoriteListItem(BaseModel):
     created_at: datetime
 
 
-class AgentReplyResponse(BaseModel):
+class SproutResponse(BaseModel):
     id: UUID
-    hook: str
-    body: str
+    text: str
+    hook: str = ""
     target_sentence_id: UUID | None = None
     reaction_options: list[str] = []
     reaction: str | None = None
     created_at: datetime
 
 
-class AgentReplyListResponse(BaseModel):
-    items: list[AgentReplyResponse]
+class SproutListResponse(BaseModel):
+    items: list[SproutResponse]
 
 
 class ReactionRequest(BaseModel):
@@ -122,15 +122,3 @@ class ReactionRequest(BaseModel):
         if not v or len(v.strip()) == 0 or len(v) > 20:
             raise ValueError("回应内容 1-20 字符")
         return v.strip()
-
-
-class NotificationPayload(BaseModel):
-    has_unread_reply: bool = False
-    reply_id: UUID | None = None
-    reply_hook: str | None = None
-
-
-class CheckReplyResponse(BaseModel):
-    has_unread_reply: bool
-    reply_id: UUID | None = None
-    reply_hook: str | None = None

@@ -3,7 +3,7 @@ import { fetchAllBooks } from '../../services/sentences'
 import { toggleBookmark } from '../../services/bookmarks'
 import { isLoggedIn } from '../../services/auth'
 import { trackDwell, trackContextOpen, trackFlip, flushEvents } from '../../services/events'
-import { fetchSprout, markSproutShown, setNotificationCallback, startHeartbeat, stopHeartbeat, markReplyRead } from '../../services/garden'
+import { fetchSprout, markSproutShown, setNotificationCallback, startHeartbeat, stopHeartbeat } from '../../services/garden'
 import type { NotificationPayload } from '../../types/index'
 import { FLIP_DURATION_MS } from '../../utils/constants'
 import { loadGardenState, updateThemeCounts, shouldTriggerSeedEcho, markSeedEchoTriggered, generateSeedEcho, resetSessionEchoCount } from '../../utils/garden'
@@ -729,13 +729,13 @@ Page({
   },
 
   showToastNotification(payload: NotificationPayload) {
-    if (!payload.has_unread_reply || !payload.reply_hook) return
+    if (!payload.has_unread_sprout || !payload.sprout_hook) return
     if (this.data.toastVisible) return
     if (this.toastTimer) clearTimeout(this.toastTimer)
     this.setData({
       toastVisible: true,
-      toastHook: payload.reply_hook,
-      toastReplyId: payload.reply_id || '',
+      toastHook: payload.sprout_hook,
+      toastReplyId: payload.sprout_id || '',
     })
     this.toastTimer = setTimeout(() => {
       this.setData({ toastVisible: false })
@@ -744,9 +744,9 @@ Page({
 
   onTapToast() {
     if (this.toastTimer) clearTimeout(this.toastTimer)
-    const replyId = this.data.toastReplyId
+    const sproutId = this.data.toastReplyId
     this.setData({ toastVisible: false })
-    if (replyId) markReplyRead(replyId)
+    if (sproutId) markSproutShown(sproutId)
     wx.navigateTo({ url: '/pages/mine/mine' })
   },
 

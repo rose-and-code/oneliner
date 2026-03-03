@@ -10,9 +10,9 @@ from pydantic import BaseModel
 from app.entities.event import UserEvent
 from app.entities.user import User
 from app.services.agent import analyze_events_and_generate_reply
-from app.services.garden import create_agent_reply
+from app.services.garden import create_sprout
 from app.services.garden import get_user_context
-from app.services.garden import should_generate_reply
+from app.services.garden import should_generate_sprout_on_event
 from app.utils.deps import current_user
 
 logger = logging.getLogger(__name__)
@@ -34,23 +34,23 @@ class BatchEventsRequest(BaseModel):
     events: list[EventItem]
 
 
-async def _try_generate_reply(user_id):
-    """后台任务：分析行为事件，尝试生成花灵回复"""
+async def _try_generate_sprout_from_events(user_id):
+    """后台任务：分析行为事件，尝试生成冒芽"""
     await asyncio.sleep(2)
-    if not await should_generate_reply(user_id):
+    if not await should_generate_sprout_on_event(user_id):
         return
     ctx = await get_user_context(user_id)
     result = await analyze_events_and_generate_reply(user_id, ctx)
     if not result:
         return
-    await create_agent_reply(
+    await create_sprout(
         user_id,
-        hook=result["hook"],
-        body=result["body"],
+        text=result.get("body", result.get("text", "")),
+        hook=result.get("hook", ""),
         target_sentence_id=result.get("target_sentence_id"),
         reaction_options=result.get("reaction_options"),
     )
-    logger.info("花灵回复生成: %s", result["hook"][:30])
+    logger.info("冒芽生成（行为触发）: %s", result.get("hook", "")[:30])
 
 
 @router.post("/batch")
@@ -67,5 +67,5 @@ async def batch_create(req: BatchEventsRequest, user: CurrentUser, bg: Backgroun
         for e in req.events
     ]
     await UserEvent.bulk_create(objs)
-    bg.add_task(_try_generate_reply, user.id)
+    bg.add_task(_try_generate_sprout_from_events, user.id)
     return {"created": len(objs)}

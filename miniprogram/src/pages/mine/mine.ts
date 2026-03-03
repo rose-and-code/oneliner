@@ -1,7 +1,7 @@
-import type { BookmarkItem, AgentReplyItem } from '../../types/index'
+import type { BookmarkItem, SproutItem } from '../../types/index'
 import { fetchBookmarks, toggleBookmark } from '../../services/bookmarks'
 import { isLoggedIn } from '../../services/auth'
-import { fetchReplies, submitReaction } from '../../services/garden'
+import { fetchSproutList, submitReaction } from '../../services/garden'
 import { getGardenStage, getStageText, getTopThemes, buildThemeCountsFromBookmarks, STAGE_CONFIG } from '../../utils/garden'
 
 interface BookmarkGroup {
@@ -49,8 +49,8 @@ Page({
     topThemes: [] as string[],
     showThemes: false,
     scrollHeight: 0,
-    replies: [] as (AgentReplyItem & { timeAgo: string })[],
-    hasReplies: false,
+    sprouts: [] as (SproutItem & { timeAgo: string })[],
+    hasSprouts: false,
   },
 
   onLoad() {
@@ -79,7 +79,7 @@ Page({
       return
     }
     this.loadBookmarks()
-    this.loadReplies()
+    this.loadSprouts()
   },
 
   async loadBookmarks() {
@@ -103,30 +103,30 @@ Page({
     this._updateScrollHeight(hasContent)
   },
 
-  async loadReplies() {
+  async loadSprouts() {
     if (!isLoggedIn()) return
-    const resp = await fetchReplies(20)
+    const resp = await fetchSproutList(20)
     const items = resp.items || []
-    const replies = items.map((r: AgentReplyItem) => ({
-      ...r,
-      timeAgo: relativeTime(r.created_at),
+    const sprouts = items.map((s: SproutItem) => ({
+      ...s,
+      timeAgo: relativeTime(s.created_at),
     }))
-    this.setData({ replies, hasReplies: replies.length > 0 })
+    this.setData({ sprouts, hasSprouts: sprouts.length > 0 })
   },
 
   async onTapReaction(e: WechatMiniprogram.TouchEvent) {
-    const dataset = (e.currentTarget as unknown as { dataset: { replyId: string; reaction: string } }).dataset
-    if (!dataset.replyId || !dataset.reaction) return
-    await submitReaction(dataset.replyId, dataset.reaction)
-    const replies = this.data.replies.map(r => {
-      if (r.id === dataset.replyId) return { ...r, reaction: dataset.reaction }
-      return r
+    const dataset = (e.currentTarget as unknown as { dataset: { sproutId: string; reaction: string } }).dataset
+    if (!dataset.sproutId || !dataset.reaction) return
+    await submitReaction(dataset.sproutId, dataset.reaction)
+    const sprouts = this.data.sprouts.map(s => {
+      if (s.id === dataset.sproutId) return { ...s, reaction: dataset.reaction }
+      return s
     })
-    this.setData({ replies })
+    this.setData({ sprouts })
     wx.vibrateShort({ type: 'light' })
   },
 
-  onTapReplyTarget(e: WechatMiniprogram.TouchEvent) {
+  onTapSproutTarget(e: WechatMiniprogram.TouchEvent) {
     const sid = (e.currentTarget as unknown as { dataset: { sentenceId: string } }).dataset.sentenceId
     if (!sid) return
     wx.navigateBack()

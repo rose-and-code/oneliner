@@ -14,7 +14,7 @@ from app.services.favorite import toggle_favorite
 from app.services.garden import create_sprout
 from app.services.garden import get_notification_payload
 from app.services.garden import get_user_context
-from app.services.garden import should_generate_sprout
+from app.services.garden import should_generate_sprout_on_favorite
 from app.types.schemas import FavoriteListItem
 from app.types.schemas import FavoriteToggleRequest
 from app.types.schemas import PaginatedResponse
@@ -28,15 +28,15 @@ CurrentUser = Annotated[User, Depends(current_user)]
 
 
 async def _try_generate_sprout(user_id):
-    """后台任务：尝试为用户生成冒芽"""
+    """后台任务：尝试为用户生成冒芽（收藏触发）"""
     await asyncio.sleep(1)
-    if not await should_generate_sprout(user_id):
+    if not await should_generate_sprout_on_favorite(user_id):
         return
     ctx = await get_user_context(user_id)
     result = await generate_sprout(ctx)
     if result and result.get("text"):
-        await create_sprout(user_id, result["text"], result.get("target_sentence_id"))
-        logger.info("冒芽生成成功: %s", result["text"][:30])
+        await create_sprout(user_id, result["text"], target_sentence_id=result.get("target_sentence_id"))
+        logger.info("冒芽生成（收藏触发）: %s", result["text"][:30])
 
 
 @router.post("/toggle")
