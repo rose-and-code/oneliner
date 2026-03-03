@@ -16,6 +16,12 @@ SPROUT_COOLDOWN_HOURS = 12
 MIN_FAVORITES_FOR_SPROUT = 5
 REPLY_LIST_LIMIT = 20
 
+REPLY_INITIAL_COOLDOWN_SECONDS = 30
+REPLY_ACTIVE_COOLDOWN_SECONDS = 180
+REPLY_STABLE_COOLDOWN_SECONDS = 600
+REPLY_LONG_COOLDOWN_SECONDS = 1800
+MIN_EVENTS_FOR_REPLY = 3
+
 
 async def get_garden_status(user_id: UUID) -> dict:
     """获取花园状态：种子数、生长阶段、热门主题"""
@@ -129,6 +135,35 @@ async def _calc_top_themes(user_id: UUID) -> list[str]:
             theme_counts[t] = theme_counts.get(t, 0) + 1
     sorted_themes = sorted(theme_counts.items(), key=lambda x: -x[1])
     return [t for t, _ in sorted_themes[:2]]
+
+
+async def should_generate_reply(user_id: UUID) -> bool:
+    """判断是否应该为用户生成新的花灵回复（频率衰减策略）"""
+    unshown = await AgentReply.filter(user_id=user_id, shown=False).exists()
+    if unshown:
+        return False
+
+    event_count = await UserEvent.filter(user_id=user_id).count()
+    if event_count < MIN_EVENTS_FOR_REPLY:
+        return False
+
+    reply_count = await AgentReply.filter(user_id=user_id).count()
+    if reply_count == 0:
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=REPLY_INITIAL_COOLDOWN_SECONDS)
+        has_recent_event = await UserEvent.filter(user_id=user_id, created_at__gte=cutoff).exists()
+        return has_recent_event
+
+    last_reply = await AgentReply.filter(user_id=user_id).order_by("-created_at").first()
+    if not last_reply:
+        return True
+
+    elapsed = (datetime.now(timezone.utc) - last_reply.created_at).total_seconds()
+
+    if reply_count <= 2:
+        return elapsed >= REPLY_ACTIVE_COOLDOWN_SECONDS
+    if reply_count <= 5:
+        return elapsed >= REPLY_STABLE_COOLDOWN_SECONDS
+    return elapsed >= REPLY_LONG_COOLDOWN_SECONDS
 
 
 async def check_unread_reply(user_id: UUID) -> dict | None:
