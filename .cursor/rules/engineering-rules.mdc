@@ -103,6 +103,10 @@ alwaysApply: true
 6. **基类选择** - 根据业务需求选择 BaseEntity (UUID主键) 或 TypeIDEntity (TypeID主键)
 
 
+## 文档同步
+
+1. **PRD 同步** - 每次大的功能改动（新增/删除/合并实体、API 路径变更、架构调整）完成后，必须同步更新 `docs/` 下对应的 PRD 文档，确保 PRD 与代码实现一致；PRD 中的数据模型、API 设计、技术改动范围等章节必须反映最新代码
+
 ## 快捷指令
 
 ls
