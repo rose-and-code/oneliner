@@ -15,10 +15,10 @@ MIN_FAVORITES_FOR_SPROUT = 5
 SPROUT_COOLDOWN_HOURS = 12
 
 SPROUT_INITIAL_COOLDOWN_SECONDS = 30
-SPROUT_ACTIVE_COOLDOWN_SECONDS = 180
-SPROUT_STABLE_COOLDOWN_SECONDS = 600
-SPROUT_LONG_COOLDOWN_SECONDS = 1800
-MIN_EVENTS_FOR_SPROUT = 3
+SPROUT_ACTIVE_COOLDOWN_SECONDS = 120
+SPROUT_STABLE_COOLDOWN_SECONDS = 180
+SPROUT_LONG_COOLDOWN_SECONDS = 300
+MIN_EVENTS_FOR_SPROUT = 2
 SPROUT_LIST_LIMIT = 20
 
 
@@ -96,33 +96,57 @@ async def get_user_context(user_id: UUID) -> dict:
         sentence = get_sentence_by_id(str(fav.sentence_id))
         if not sentence:
             continue
-        book_title = ""
-        book_author = ""
-        for b in _books:
-            if b["id"] == sentence.get("book_id"):
-                book_title = b["title"]
-                book_author = b["author"]
-                break
-        fav_data.append({
+        book_title, book_author = _find_book_info(sentence)
+        entry = {
             "text": sentence["text"],
             "book_title": book_title,
             "book_author": book_author,
             "themes": sentence.get("themes", []),
             "sentence_id": str(fav.sentence_id),
-        })
+        }
+        oq = sentence.get("opposite_quotes", [])
+        if oq:
+            entry["opposite_quote"] = {
+                "text": oq[0]["text"],
+                "book_title": oq[0].get("book_title", ""),
+                "book_author": oq[0].get("book_author", ""),
+            }
+        fav_data.append(entry)
 
     recent_events = await UserEvent.filter(user_id=user_id).order_by("-created_at").limit(100)
     events_data = []
     for ev in recent_events:
         sentence = get_sentence_by_id(str(ev.sentence_id)) if ev.sentence_id else None
-        events_data.append({
+        entry = {
             "event_type": ev.event_type,
-            "sentence_text": sentence["text"][:50] if sentence else "",
             "sentence_id": str(ev.sentence_id) if ev.sentence_id else "",
             "duration_ms": ev.duration_ms or 0,
-        })
+        }
+        if sentence:
+            book_title, book_author = _find_book_info(sentence)
+            entry["sentence_text"] = sentence["text"]
+            entry["book_title"] = book_title
+            entry["book_author"] = book_author
+            entry["themes"] = sentence.get("themes", [])
+            if ev.event_type == "flip":
+                oq = sentence.get("opposite_quotes", [])
+                if oq:
+                    entry["opposite_quote"] = {
+                        "text": oq[0]["text"],
+                        "book_title": oq[0].get("book_title", ""),
+                        "book_author": oq[0].get("book_author", ""),
+                    }
+        events_data.append(entry)
 
     return {"favorites": fav_data, "events": events_data}
+
+
+def _find_book_info(sentence: dict) -> tuple[str, str]:
+    """从句子数据中查找所属书名和作者。"""
+    for b in _books:
+        if b["id"] == sentence.get("book_id"):
+            return b["title"], b["author"]
+    return "", ""
 
 
 async def create_sprout(
@@ -131,6 +155,7 @@ async def create_sprout(
     hook: str = "",
     target_sentence_id: UUID | None = None,
     reaction_options: list[str] | None = None,
+    rec: dict | None = None,
 ) -> Sprout:
     """写入一条冒芽，并标记用户有未读"""
     sprout = await Sprout.create(
@@ -139,6 +164,7 @@ async def create_sprout(
         hook=hook or text[:25],
         target_sentence_id=target_sentence_id,
         reaction_options=reaction_options or [],
+        rec=rec,
     )
     await User.filter(id=user_id).update(has_unread_sprout=True)
     return sprout

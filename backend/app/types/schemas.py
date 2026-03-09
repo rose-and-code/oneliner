@@ -99,6 +99,12 @@ class FavoriteListItem(BaseModel):
     created_at: datetime
 
 
+class RecResponse(BaseModel):
+    quote: str = ""
+    book: str = ""
+    author: str = ""
+
+
 class SproutResponse(BaseModel):
     id: UUID
     text: str
@@ -106,6 +112,7 @@ class SproutResponse(BaseModel):
     target_sentence_id: UUID | None = None
     reaction_options: list[str] = []
     reaction: str | None = None
+    rec: RecResponse | None = None
     created_at: datetime
 
 

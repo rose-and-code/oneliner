@@ -18,6 +18,7 @@ from app.services.garden import mark_sprout_shown
 from app.services.garden import should_generate_sprout_on_favorite
 from app.services.garden import submit_sprout_reaction
 from app.types.schemas import ReactionRequest
+from app.types.schemas import RecResponse
 from app.types.schemas import SproutListResponse
 from app.types.schemas import SproutResponse
 from app.utils.deps import current_user
@@ -25,6 +26,23 @@ from app.utils.deps import current_user
 router = APIRouter(prefix="/api/garden", tags=["garden"])
 
 CurrentUser = Annotated[User, Depends(current_user)]
+
+
+def _to_sprout_response(s) -> SproutResponse:
+    """Convert a Sprout entity to SproutResponse."""
+    rec = None
+    if s.rec and isinstance(s.rec, dict):
+        rec = RecResponse(**s.rec)
+    return SproutResponse(
+        id=s.id,
+        text=s.text,
+        hook=s.hook,
+        target_sentence_id=s.target_sentence_id,
+        reaction_options=s.reaction_options,
+        reaction=s.reaction,
+        rec=rec,
+        created_at=s.created_at,
+    )
 
 
 class SproutShownRequest(BaseModel):
@@ -50,15 +68,7 @@ async def get_sprout(user: CurrentUser, response: Response):
     if not sprout:
         response.status_code = 204
         return None
-    return SproutResponse(
-        id=sprout.id,
-        text=sprout.text,
-        hook=sprout.hook,
-        target_sentence_id=sprout.target_sentence_id,
-        reaction_options=sprout.reaction_options,
-        reaction=sprout.reaction,
-        created_at=sprout.created_at,
-    )
+    return _to_sprout_response(sprout)
 
 
 @router.post("/sprout/shown")
@@ -77,20 +87,7 @@ async def check_sprout(user: CurrentUser):
 async def list_sprouts(user: CurrentUser, limit: int = 20):
     limit = min(limit, 50)
     sprouts = await get_sprout_list(user.id, limit)
-    return SproutListResponse(
-        items=[
-            SproutResponse(
-                id=s.id,
-                text=s.text,
-                hook=s.hook,
-                target_sentence_id=s.target_sentence_id,
-                reaction_options=s.reaction_options,
-                reaction=s.reaction,
-                created_at=s.created_at,
-            )
-            for s in sprouts
-        ]
-    )
+    return SproutListResponse(items=[_to_sprout_response(s) for s in sprouts])
 
 
 @router.post("/sprout/{sprout_id}/react")

@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from uuid import UUID
 
+import httpx
 from openai import AsyncOpenAI
 
 from app.config import settings
@@ -15,6 +16,12 @@ SOUL_PATH = Path(__file__).resolve().parent.parent.parent.parent / "agent" / "SO
 SPROUT_SKILL_PATH = Path(__file__).resolve().parent.parent.parent.parent / "agent" / "skills" / "garden-sprout" / "SKILL.md"
 REPLY_SKILL_PATH = Path(__file__).resolve().parent.parent.parent.parent / "agent" / "skills" / "garden-reply" / "SKILL.md"
 
+MAX_HOOK_LEN = 30
+MAX_BODY_LEN = 100
+MAX_SPROUT_LEN = 60
+MAX_DWELL_SECONDS = 120
+MIN_UNIQUE_SENTENCES_FOR_LLM = 2
+
 
 def _load_file(path: Path) -> str:
     """Load a text file, return empty string if not found."""
@@ -23,72 +30,192 @@ def _load_file(path: Path) -> str:
     return ""
 
 
-def _get_client() -> AsyncOpenAI | None:
-    """Get ARK API client, return None if not configured."""
+def _find_book_info(sentence: dict) -> tuple[str, str]:
+    """从句子数据中查找所属书名和作者。"""
+    for b in _books:
+        if b["id"] == sentence.get("book_id"):
+            return b["title"], b["author"]
+    return "", ""
+
+
+def _get_client() -> tuple[AsyncOpenAI, str] | None:
+    """Get LLM client based on LLM_PROVIDER config. Returns (client, model_name) or None."""
+    provider = settings.llm_provider.lower()
+
+    if provider == "openclaw":
+        if not settings.openclaw_api_key:
+            logger.warning("OpenClaw API 未配置，尝试 ARK 降级")
+            return _get_ark_client()
+        client = AsyncOpenAI(
+            api_key=settings.openclaw_api_key,
+            base_url=settings.openclaw_base_url,
+            http_client=httpx.AsyncClient(verify=False),
+        )
+        return client, settings.openclaw_model
+
+    return _get_ark_client()
+
+
+def _get_ark_client() -> tuple[AsyncOpenAI, str] | None:
+    """Get ARK API client."""
     if not settings.ark_api_key:
+        logger.warning("ARK API 未配置，使用降级方案")
         return None
-    return AsyncOpenAI(api_key=settings.ark_api_key, base_url=settings.ark_base_url)
+    return AsyncOpenAI(api_key=settings.ark_api_key, base_url=settings.ark_base_url), settings.ark_chat_model
 
 
 async def _call_llm(system_prompt: str, user_prompt: str) -> dict | None:
-    """Call ARK LLM API and parse JSON response."""
-    client = _get_client()
-    if not client:
-        logger.warning("ARK API 未配置，使用降级方案")
+    """Call LLM API and parse JSON response."""
+    result = _get_client()
+    if not result:
         return None
+    client, model = result
     try:
         resp = await client.chat.completions.create(
-            model=settings.ark_chat_model,
+            model=model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
-            temperature=0.8,
-            max_tokens=500,
+            temperature=0.6,
+            max_tokens=300,
         )
         content = resp.choices[0].message.content.strip()
         if content.startswith("```"):
             content = content.split("\n", 1)[1] if "\n" in content else content[3:]
             content = content.rsplit("```", 1)[0]
-        return json.loads(content)
+        parsed = json.loads(content)
+        if parsed.get("text") == "null" or parsed.get("hook") == "null":
+            return None
+        return parsed
+    except json.JSONDecodeError:
+        try:
+            content = _fix_json(content)
+            return json.loads(content)
+        except Exception:
+            logger.warning("LLM JSON 解析失败 (%s)，使用降级方案", settings.llm_provider)
+            return None
     except Exception as e:
-        logger.warning("ARK API 调用失败: %s，使用降级方案", e)
+        logger.warning("LLM 调用失败 (%s): %s，使用降级方案", settings.llm_provider, e)
         return None
 
 
+def _fix_json(raw: str) -> str:
+    """Attempt to fix common LLM JSON issues like unescaped quotes in values."""
+    import re
+    raw = re.sub(r'(?<=: )"([^"]*)"([^",}\]\n]+)"', lambda m: '"' + m.group(1).replace('"', '\\"') + m.group(2).replace('"', '\\"') + '"', raw)
+    return raw
+
+
+def _truncate(result: dict) -> dict:
+    """Truncate text fields to hard character limits."""
+    if result.get("hook") and len(result["hook"]) > MAX_HOOK_LEN:
+        result["hook"] = result["hook"][:MAX_HOOK_LEN]
+    if result.get("body") and len(result["body"]) > MAX_BODY_LEN:
+        result["body"] = result["body"][:MAX_BODY_LEN]
+    if result.get("text") and len(result["text"]) > MAX_SPROUT_LEN:
+        result["text"] = result["text"][:MAX_SPROUT_LEN]
+    return result
+
+
+def _normalize_rec(result: dict) -> dict:
+    """Ensure rec field has valid structure or remove it."""
+    rec = result.get("rec")
+    if not rec or not isinstance(rec, dict):
+        result.pop("rec", None)
+        return result
+    if not rec.get("quote") or not rec.get("book"):
+        result.pop("rec", None)
+    return result
+
+
+def _has_enough_data(user_context: dict) -> bool:
+    """Check if there's enough diverse data to generate a meaningful reply."""
+    events = user_context.get("events", [])
+    favorites = user_context.get("favorites", [])
+    event_sids = {e.get("sentence_id") for e in events if e.get("sentence_id") and e.get("sentence_text")}
+    fav_sids = {f.get("sentence_id") for f in favorites}
+    all_sids = event_sids | fav_sids
+    return len(all_sids) >= MIN_UNIQUE_SENTENCES_FOR_LLM
+
+
 async def generate_sprout(user_context: dict) -> dict | None:
-    """生成冒芽：先尝试 LLM，失败则降级到模板"""
+    """生成冒芽：先尝试 LLM，失败则降级到模板。"""
+    if not _has_enough_data(user_context):
+        return None
+
     soul = _load_file(SOUL_PATH)
     skill = _load_file(SPROUT_SKILL_PATH)
     system_prompt = f"{soul}\n\n---\n\n{skill}"
-    user_prompt = f"用户上下文：\n{json.dumps(user_context, ensure_ascii=False, indent=2)}"
+    user_prompt = _build_user_prompt(user_context)
 
     result = await _call_llm(system_prompt, user_prompt)
     if result and result.get("text"):
-        return result
+        return _truncate(result)
     return await _generate_sprout_fallback(user_context)
 
 
 async def analyze_events_and_generate_reply(user_id: UUID, user_context: dict) -> dict | None:
-    """分析用户行为事件流，生成花灵回复。先尝试 LLM，失败则降级到规则模板。"""
+    """分析行为事件，生成花灵回复。先尝试 LLM，失败则降级。"""
+    if not _has_enough_data(user_context):
+        return await _generate_reply_fallback(user_id, user_context)
+
     soul = _load_file(SOUL_PATH)
     skill = _load_file(REPLY_SKILL_PATH)
     system_prompt = f"{soul}\n\n---\n\n{skill}"
-    user_prompt = f"用户上下文：\n{json.dumps(user_context, ensure_ascii=False, indent=2)}"
+    user_prompt = _build_user_prompt(user_context)
 
     result = await _call_llm(system_prompt, user_prompt)
     if result and result.get("hook") and result.get("body"):
         if "reaction_options" not in result or not result["reaction_options"]:
             result["reaction_options"] = ["确实", "才不是"]
-        return result
+        return _normalize_rec(_truncate(result))
     return await _generate_reply_fallback(user_id, user_context)
 
 
+def _build_user_prompt(user_context: dict) -> str:
+    """构建用户上下文 prompt。过滤无效数据，限制 dwell 时间。"""
+    parts = []
+
+    events = user_context.get("events", [])
+    valid_events = [e for e in events if e.get("sentence_text")]
+    if valid_events:
+        parts.append("最近行为：\n")
+        for e in valid_events[:15]:
+            line = f"- [{e['event_type']}] 「{e['sentence_text'][:30]}」"
+            if e.get("book_title"):
+                line += f" —— {e.get('book_author', '')}《{e['book_title']}》"
+            if e["event_type"] == "dwell" and e.get("duration_ms"):
+                capped = min(e["duration_ms"] // 1000, MAX_DWELL_SECONDS)
+                if capped >= 10:
+                    line += "（停了一会儿）"
+            if e.get("opposite_quote"):
+                oq = e["opposite_quote"]
+                line += f" → 翻面：「{oq['text'][:20]}」{oq.get('book_author', '')}"
+            parts.append(line)
+
+    favorites = user_context.get("favorites", [])
+    if favorites:
+        parts.append("\n收藏：\n")
+        for f in favorites[:10]:
+            line = f"- 「{f['text'][:30]}」—— {f.get('book_author', '')}《{f.get('book_title', '')}》"
+            parts.append(line)
+
+    if not parts:
+        return "暂无数据"
+
+    return "\n".join(parts)
+
+
 async def _generate_sprout_fallback(user_context: dict) -> dict | None:
-    """降级方案：基于规则模板生成冒芽"""
+    """降级：基于规则模板生成冒芽。"""
     favorites = user_context.get("favorites", [])
     if len(favorites) < 3:
         return None
+
+    cross_book = _detect_cross_book_link(favorites)
+    if cross_book:
+        return cross_book
 
     theme_counts: dict[str, list[str]] = {}
     for fav in favorites:
@@ -100,135 +227,109 @@ async def _generate_sprout_fallback(user_context: dict) -> dict | None:
     sorted_themes = sorted(theme_counts.items(), key=lambda x: -len(x[1]))
 
     if len(sorted_themes) >= 1 and len(set(sorted_themes[0][1])) >= 2:
-        theme = sorted_themes[0][0]
-        unique_authors = list(set(sorted_themes[0][1]))[:2]
+        authors = list(set(sorted_themes[0][1]))[:2]
         return {
-            "text": f"{unique_authors[0]}和{unique_authors[1]}，都在说「{theme}」这件事，你注意到了吗。",
+            "text": f"诶，{authors[0]}和{authors[1]}被你翻到一起了，挺有意思的",
             "target_sentence_id": favorites[0].get("sentence_id"),
         }
 
-    if len(sorted_themes) >= 2:
-        t1 = sorted_themes[0][0]
-        t2 = sorted_themes[1][0]
-        return {
-            "text": f"你最近种的种子，一半在想「{t1}」，一半在想「{t2}」。",
-            "target_sentence_id": None,
-        }
+    return None
 
-    if len(favorites) >= 5:
-        return {
-            "text": f"你已经种了{len(favorites)}颗种子了，花园开始有自己的形状了。",
-            "target_sentence_id": None,
-        }
 
+def _detect_cross_book_link(favorites: list[dict]) -> dict | None:
+    """检测跨书收藏联系。"""
+    if len(favorites) < 3:
+        return None
+    by_theme: dict[str, list[dict]] = {}
+    for fav in favorites:
+        for t in fav.get("themes", []):
+            if t not in by_theme:
+                by_theme[t] = []
+            by_theme[t].append(fav)
+    for theme, fav_list in sorted(by_theme.items(), key=lambda x: -len(x[1])):
+        authors = list({f["book_author"] for f in fav_list if f.get("book_author")})
+        if len(authors) >= 2:
+            f1 = next(f for f in fav_list if f.get("book_author") == authors[0])
+            return {
+                "text": f"你有没有发现呢，{authors[0]}和{authors[1]}在你的收藏里说了差不多的事",
+                "target_sentence_id": f1.get("sentence_id"),
+            }
     return None
 
 
 async def _generate_reply_fallback(user_id: UUID, user_context: dict) -> dict | None:
-    """降级方案：从行为事件中检测模式，生成规则模板回复"""
+    """降级：从行为中检测模式，生成模板回复。"""
     events = user_context.get("events", [])
     favorites = user_context.get("favorites", [])
-
     if len(events) < 3:
         return None
-
     return _detect_pattern(events, favorites)
 
 
 def _detect_pattern(events: list[dict], favorites: list[dict]) -> dict | None:
-    """从行为事件和收藏中检测可触发回复的模式，按优先级返回第一个命中。"""
-    long_dwell = _detect_long_dwell(events)
-    if long_dwell:
-        return long_dwell
+    """检测行为模式，按优先级返回。"""
+    flip_dwell = _detect_flip_then_dwell(events)
+    if flip_dwell:
+        return flip_dwell
 
-    consecutive_theme = _detect_consecutive_theme(events)
-    if consecutive_theme:
-        return consecutive_theme
-
-    same_theme_favorites = _detect_same_theme_favorites(favorites)
-    if same_theme_favorites:
-        return same_theme_favorites
+    cross_book = _detect_cross_book_favorites(favorites)
+    if cross_book:
+        return cross_book
 
     return None
 
 
-def _detect_long_dwell(events: list[dict]) -> dict | None:
-    """检测异常长停留：用户在某句话上停了很久"""
-    dwell_events = [e for e in events if e["event_type"] == "dwell" and e.get("duration_ms", 0) > 15000]
-    if not dwell_events:
-        return None
-
-    longest = max(dwell_events, key=lambda e: e.get("duration_ms", 0))
-    seconds = longest["duration_ms"] // 1000
-    sentence_text = longest.get("sentence_text", "")
-    snippet = sentence_text[:15] + "..." if len(sentence_text) > 15 else sentence_text
-
-    return {
-        "hook": f"这句你停了{seconds}秒，比平时久。",
-        "body": f"「{snippet}」这句你看了{seconds}秒。大多数句子你几秒就划过去了，这句让你停下来了。",
-        "target_sentence_id": None,
-        "reaction_options": ["被看到了", "没那回事"],
-    }
-
-
-def _detect_consecutive_theme(events: list[dict]) -> dict | None:
-    """检测连续浏览同主题内容"""
-    view_events = [e for e in events if e["event_type"] in ("dwell", "context_open", "flip")]
-    if len(view_events) < 3:
-        return None
-
-    recent_ids = []
-    for e in view_events[:10]:
-        sid = e.get("sentence_id")
-        if sid:
-            recent_ids.append(sid)
-
-    theme_streak: dict[str, int] = {}
-    for sid in recent_ids:
-        sentence = get_sentence_by_id(str(sid)) if sid else None
-        if not sentence:
+def _detect_flip_then_dwell(events: list[dict]) -> dict | None:
+    """检测翻面后停留。"""
+    for i, e in enumerate(events[:20]):
+        if e["event_type"] != "dwell" or e.get("duration_ms", 0) < 10000:
             continue
-        for t in sentence.get("themes", []):
-            theme_streak[t] = theme_streak.get(t, 0) + 1
+        if e.get("duration_ms", 0) > MAX_DWELL_SECONDS * 1000:
+            continue
+        sid = e.get("sentence_id")
+        if not sid:
+            continue
+        for j in range(i + 1, min(i + 5, len(events))):
+            if events[j]["event_type"] == "flip" and events[j].get("sentence_id") == sid:
+                sentence = get_sentence_by_id(str(sid))
+                if not sentence:
+                    break
+                oq = sentence.get("opposite_quotes", [])
+                if not oq:
+                    break
+                book_title, book_author = _find_book_info(sentence)
+                oq_author = oq[0].get("book_author", "")
+                return {
+                    "hook": "诶，你翻面之后在那停了一会儿",
+                    "body": f"{book_author}那页你翻了面，{oq_author}那句你看得更久",
+                    "target_sentence_id": sid,
+                    "reaction_options": ["确实在想", "随手翻的"],
+                }
+    return None
 
-    if not theme_streak:
-        return None
 
-    top_theme, count = max(theme_streak.items(), key=lambda x: x[1])
-    if count < 3:
-        return None
-
-    return {
-        "hook": f"你连翻了{count}页都是关于{top_theme}的。",
-        "body": f"最近{count}条你看过的内容里，都在围绕「{top_theme}」。不知道你有没有注意到。",
-        "target_sentence_id": None,
-        "reaction_options": ["确实", "才不是"],
-    }
-
-
-def _detect_same_theme_favorites(favorites: list[dict]) -> dict | None:
-    """检测收藏中高度集中的主题"""
+def _detect_cross_book_favorites(favorites: list[dict]) -> dict | None:
+    """检测收藏中跨作者联系。"""
     if len(favorites) < 4:
         return None
 
-    theme_counts: dict[str, int] = {}
+    by_theme: dict[str, list[dict]] = {}
     for fav in favorites:
         for t in fav.get("themes", []):
-            theme_counts[t] = theme_counts.get(t, 0) + 1
+            if t not in by_theme:
+                by_theme[t] = []
+            by_theme[t].append(fav)
 
-    if not theme_counts:
-        return None
+    for theme, fav_list in sorted(by_theme.items(), key=lambda x: -len(x[1])):
+        authors = list({f["book_author"] for f in fav_list if f.get("book_author")})
+        if len(authors) < 2 or len(fav_list) < 3:
+            continue
+        a1, a2 = authors[0], authors[1]
+        return {
+            "hook": "你有没有发现呢，你收的几句话有个共同点",
+            "body": f"{a1}和{a2}在你的收藏里都在讲「{theme}」，角度不太一样",
+            "target_sentence_id": None,
+            "reaction_options": ["被说中了", "巧合吧"],
+        }
 
-    top_theme, count = max(theme_counts.items(), key=lambda x: x[1])
-    total = len(favorites)
-    ratio = count / total
-
-    if ratio < 0.5 or count < 3:
-        return None
-
-    return {
-        "hook": f"你收藏的{total}句话里有{count}句在讲同一件事。",
-        "body": f"「{top_theme}」这个词在你的花园里反复出现。你收藏的{total}句话里，{count}句都跟它有关。",
-        "target_sentence_id": None,
-        "reaction_options": ["有点准", "想多了"],
-    }
+    return None

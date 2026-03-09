@@ -92,7 +92,7 @@ export function startHeartbeat() {
         sprout_hook: resp.sprout_hook,
       })
     }
-  }, 60000) as unknown as number
+  }, 30000) as unknown as number
 }
 
 export function stopHeartbeat() {

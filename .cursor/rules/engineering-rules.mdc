@@ -118,6 +118,18 @@ ls
 
 ## 快捷指令
 
+nd
+本地调试环境检查与启动，确保小程序能在微信开发者工具中正常运行：
+1. 检查 `miniprogram/src/utils/constants.ts` 中 `API_BASE` 是否为 `http://localhost:8000`，如不是则修正
+2. 检查 `miniprogram/project.private.config.json` 中 `skylineRenderEnable` 是否为 `true`，如不是则修正
+3. 检查 `backend/.env.dev` 中 `DATABASE_URL`、`LLM_PROVIDER`、对应 API Key 是否已配置
+4. 执行 `cd miniprogram && npm run build` 构建小程序到 `dist/`
+5. 检查后端是否已在运行（检查 terminals 中是否有 uvicorn 进程）；如未运行，执行 `cd backend && .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
+6. 检查 PostgreSQL 是否在运行（`pg_isready`）
+7. 输出检查结果清单，标注每项 OK / 需注意
+
+## 快捷指令
+
 pp
 1. 第1步，去除当前改动中的所有注释
 2. 第2步，检查当前的改动是否都符合本文件包含的所有规则的限制，每个规则都要检查是否适用

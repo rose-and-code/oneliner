@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from typing import Annotated
 
@@ -36,7 +35,6 @@ class BatchEventsRequest(BaseModel):
 
 async def _try_generate_sprout_from_events(user_id):
     """后台任务：分析行为事件，尝试生成冒芽"""
-    await asyncio.sleep(2)
     if not await should_generate_sprout_on_event(user_id):
         return
     ctx = await get_user_context(user_id)
@@ -49,6 +47,7 @@ async def _try_generate_sprout_from_events(user_id):
         hook=result.get("hook", ""),
         target_sentence_id=result.get("target_sentence_id"),
         reaction_options=result.get("reaction_options"),
+        rec=result.get("rec"),
     )
     logger.info("冒芽生成（行为触发）: %s", result.get("hook", "")[:30])
 

@@ -2,7 +2,7 @@ import type { BookWithSentences, Sentence } from '../../types/index'
 import { fetchAllBooks } from '../../services/sentences'
 import { toggleBookmark } from '../../services/bookmarks'
 import { isLoggedIn } from '../../services/auth'
-import { trackDwell, trackContextOpen, trackFlip, flushEvents } from '../../services/events'
+import { trackDwell, trackContextOpen, trackFlip, flushEvents, setSproutCheckCallback } from '../../services/events'
 import { fetchSprout, markSproutShown, setNotificationCallback, startHeartbeat, stopHeartbeat } from '../../services/garden'
 import type { NotificationPayload } from '../../types/index'
 import { FLIP_DURATION_MS } from '../../utils/constants'
@@ -40,16 +40,32 @@ interface IndexData {
   isFlipped: boolean
   loading: boolean
   tabIndex: number
-  hintVisible: boolean
+  hintVertical: boolean
+  hintHorizontal: boolean
   hasHistory: boolean
   showSheet: boolean
   sheetAuthor: string
   sheetBooks: SheetBook[]
   currentFontSize: number
+  cardIllustration: string
+  flipIllustration: string
+  flipOq: Record<string, unknown>
+  sproutText: string
+  sproutId: string
+  sproutTargetId: string
+  showSprout: boolean
   showBookOverlay: boolean
   overlayBookTitle: string
   overlayBookAuthor: string
   overlayBookCount: number
+  overlayIllustration: string
+  seedEchoText: string
+  seedEchoVisible: boolean
+  toastVisible: boolean
+  toastHook: string
+  toastReplyId: string
+  welcomeText: string
+  showWelcome: boolean
 }
 
 function buildArray(count: number): number[] {
@@ -111,7 +127,6 @@ Page({
     showSheet: false,
     sheetAuthor: '',
     sheetBooks: [],
-    flipSq: {} as Record<string, unknown>,
     flipOq: {} as Record<string, unknown>,
     sproutText: '',
     sproutId: '',
@@ -127,6 +142,8 @@ Page({
     toastVisible: false,
     toastHook: '',
     toastReplyId: '',
+    welcomeText: '',
+    showWelcome: false,
   } as IndexData,
 
   jumpHistory: [] as JumpHistoryEntry[],
@@ -146,6 +163,13 @@ Page({
     this.gardenState = resetSessionEchoCount(this.gardenState)
     setNotificationCallback((payload: NotificationPayload) => {
       this.showToastNotification(payload)
+    })
+    setSproutCheckCallback((resp) => {
+      this.showToastNotification({
+        has_unread_sprout: true,
+        sprout_id: resp.sprout_id,
+        sprout_hook: resp.sprout_hook,
+      })
     })
     this.loadData()
   },
@@ -193,6 +217,16 @@ Page({
     }, 6000)
   },
 
+  showWelcomeIfNeeded() {
+    const shown = wx.getStorageSync('welcome_shown')
+    if (shown) return
+    wx.setStorageSync('welcome_shown', '1')
+    setTimeout(() => {
+      this.setData({ welcomeText: '来啦，随便翻翻', showWelcome: true })
+      setTimeout(() => { this.setData({ showWelcome: false }) }, 5000)
+    }, 1500)
+  },
+
   onTapSprout() {
     if (!this.data.sproutTargetId) return
     const pos = this.findSentencePosition(this.data.sproutTargetId)
@@ -237,23 +271,30 @@ Page({
       const bi = Math.floor(Math.random() * books.length)
       const si = Math.floor(Math.random() * books[bi].sentences.length)
       this.setData({ bookIndex: bi, sentenceIndex: si })
+      this.showWelcomeIfNeeded()
     }
     this.syncHeader()
     this.setupHintAnimations()
-    setTimeout(() => this.setupFlipAnimation(), 100)
+    setTimeout(() => { this.setupFlipAnimation(); this.setupSpinAnimation() }, 100)
     setTimeout(() => this.setupSeedDotAnimation(), 200)
   },
 
   hintVal: null as ReturnType<typeof shared<number>> | null,
   flipVal: null as ReturnType<typeof shared<number>> | null,
+  spinVal: null as ReturnType<typeof shared<number>> | null,
   flipAnimating: false,
   flipAnimBound: false,
+  spinBound: false,
 
   resetFlip() {
     this.flipAnimating = false
     this.flipAnimBound = false
+    this.spinBound = false
     if (this.flipVal) this.flipVal.value = 0
-    setTimeout(() => this.setupFlipAnimation(), 100)
+    setTimeout(() => {
+      this.setupFlipAnimation()
+      this.setupSpinAnimation()
+    }, 100)
   },
 
   setupFlipAnimation() {
@@ -273,6 +314,19 @@ Page({
       const v = fv.value
       const s = v >= 0.5 ? (v - 0.5) * 2 : 0
       return { transform: `scaleX(${s})`, opacity: s < 0.01 ? 0 : 1 }
+    })
+  },
+
+  setupSpinAnimation() {
+    if (!isSkyline || this.spinBound) return
+    this.spinBound = true
+    const sv = shared(0)
+    this.spinVal = sv
+    sv.value = repeat(timing(360, { duration: 4000 }), -1)
+
+    this.applyAnimatedStyle('#flip-vortex-bg', () => {
+      'worklet'
+      return { transform: `rotate(${sv.value}deg)` }
     })
   },
 
@@ -431,12 +485,10 @@ Page({
     const { books, bookIndex, sentenceIndex } = this.data
     const s = books[bookIndex].sentences[sentenceIndex]
     trackFlip(s.id, books[bookIndex].book.id)
-    const rawSq = s.similar_quotes && s.similar_quotes.length > 0 ? s.similar_quotes[0] : null
     const rawOq = s.opposite_quotes && s.opposite_quotes.length > 0 ? s.opposite_quotes[0] : null
 
     this.setData({
       isFlipped: true,
-      flipSq: this.enrichQuote(rawSq as Record<string, unknown> | null),
       flipOq: this.enrichQuote(rawOq as Record<string, unknown> | null),
     })
 
@@ -751,10 +803,12 @@ Page({
   },
 
   goToMine() {
+    if (!this.ensureLogin()) return
     wx.navigateTo({ url: '/pages/mine/mine' })
   },
 
   goToProfile() {
+    if (!this.ensureLogin()) return
     wx.navigateTo({ url: '/pages/profile/profile' })
   },
 
