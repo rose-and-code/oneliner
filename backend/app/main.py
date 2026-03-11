@@ -30,6 +30,7 @@ class _InterceptHandler(logging.Handler):
 
 logging.basicConfig(handlers=[_InterceptHandler()], level=logging.INFO, force=True)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+logging.getLogger("tortoise").setLevel(logging.WARNING)
 logger.configure(
     handlers=[
         {

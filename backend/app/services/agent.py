@@ -99,7 +99,7 @@ async def _call_llm(system_prompt: str, user_prompt: str) -> dict | None:
                 json=payload,
                 headers=headers,
                 ssl=ssl_ctx,
-                timeout=aiohttp.ClientTimeout(total=30),
+                timeout=aiohttp.ClientTimeout(total=60),
             ) as resp,
         ):
             body = await resp.json()
@@ -122,7 +122,9 @@ async def _call_llm(system_prompt: str, user_prompt: str) -> dict | None:
             )
             return None
     except Exception as e:
-        logger.warning("LLM 调用失败 ({}): {}", settings.llm_provider, e)
+        logger.warning(
+            "LLM 调用失败 ({}): {} {}", settings.llm_provider, type(e).__name__, e
+        )
         return None
 
 
