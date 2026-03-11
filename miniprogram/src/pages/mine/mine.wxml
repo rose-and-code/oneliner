@@ -59,6 +59,7 @@
 
         <block wx:for="{{sprouts}}" wx:key="id">
           <view style="margin-bottom:12px; padding:16px 18px; border-radius:16px; background:#FAF7F2; box-shadow:0 1px 3px rgba(26,26,26,0.03);">
+            <text wx:if="{{item.hook}}" style="font-size:12px; line-height:1.6; color:rgba(26,26,26,0.4); font-weight:500; display:block; margin-bottom:6px;">{{item.hook}}</text>
             <text style="font-size:14px; line-height:1.8; color:#1A1A1A; font-weight:500; display:block;">{{item.text}}</text>
 
             <view wx:if="{{item.target_sentence_id}}" style="margin-top:8px;">
