@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from typing import Annotated
 from uuid import UUID
 
@@ -7,6 +6,7 @@ from fastapi import APIRouter
 from fastapi import BackgroundTasks
 from fastapi import Depends
 from fastapi import Query
+from loguru import logger
 
 from app.entities.user import User
 from app.services.agent import generate_sprout
@@ -20,8 +20,6 @@ from app.types.schemas import FavoriteListItem
 from app.types.schemas import FavoriteToggleRequest
 from app.types.schemas import PaginatedResponse
 from app.utils.deps import current_user
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/favorites", tags=["favorites"])
 

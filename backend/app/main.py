@@ -1,7 +1,10 @@
 from contextlib import asynccontextmanager
+import logging
+import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from loguru import logger
 from tortoise.contrib.fastapi import RegisterTortoise
 
 from app.config import TORTOISE_ORM
@@ -13,8 +16,34 @@ from app.routes.garden import router as garden_router
 from app.services.book import load_books
 
 
+class _InterceptHandler(logging.Handler):
+    """将标准 logging 转发到 loguru。"""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        level: str | int
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+        logger.opt(depth=6, exception=record.exc_info).log(level, record.getMessage())
+
+
+logging.basicConfig(handlers=[_InterceptHandler()], level=logging.INFO, force=True)
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+logger.configure(
+    handlers=[
+        {
+            "sink": sys.stderr,
+            "level": "INFO",
+            "format": "<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan> - <level>{message}</level>",
+        }
+    ]
+)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """应用生命周期管理。"""
     load_books()
     async with RegisterTortoise(app, config=TORTOISE_ORM, generate_schemas=False):
         yield

@@ -1,17 +1,15 @@
 import json
-import logging
 from pathlib import Path
 import re
+import ssl
 from uuid import UUID
 
-import httpx
-from openai import AsyncOpenAI
+import aiohttp
+from loguru import logger
 
 from app.config import settings
 from app.services.book import _books
 from app.services.book import get_sentence_by_id
-
-logger = logging.getLogger(__name__)
 
 SOUL_PATH = Path(__file__).resolve().parent.parent.parent.parent / "agent" / "SOUL.md"
 SPROUT_SKILL_PATH = (
@@ -51,52 +49,62 @@ def _find_book_info(sentence: dict) -> tuple[str, str]:
     return "", ""
 
 
-def _get_client() -> tuple[AsyncOpenAI, str] | None:
-    """Get LLM client based on LLM_PROVIDER config. Returns (client, model_name) or None."""
+def _get_llm_config() -> tuple[str, str, str, bool] | None:
+    """返回 (base_url, api_key, model, skip_ssl)，无可用配置则返回 None。"""
     provider = settings.llm_provider.lower()
-
     if provider == "openclaw":
-        if not settings.openclaw_api_key:
-            logger.warning("OpenClaw API 未配置，尝试 ARK 降级")  # noqa: RUF001
-            return _get_ark_client()
-        client = AsyncOpenAI(
-            api_key=settings.openclaw_api_key,
-            base_url=settings.openclaw_base_url,
-            http_client=httpx.AsyncClient(verify=False),
+        if settings.openclaw_api_key:
+            return (
+                settings.openclaw_base_url,
+                settings.openclaw_api_key,
+                settings.openclaw_model,
+                True,
+            )
+        logger.warning("OpenClaw API 未配置，尝试 ARK 降级")  # noqa: RUF001
+    if settings.ark_api_key:
+        return (
+            settings.ark_base_url,
+            settings.ark_api_key,
+            settings.ark_chat_model,
+            False,
         )
-        return client, settings.openclaw_model
-
-    return _get_ark_client()
-
-
-def _get_ark_client() -> tuple[AsyncOpenAI, str] | None:
-    """Get ARK API client."""
-    if not settings.ark_api_key:
-        logger.warning("ARK API 未配置，使用降级方案")  # noqa: RUF001
-        return None
-    return (
-        AsyncOpenAI(api_key=settings.ark_api_key, base_url=settings.ark_base_url),
-        settings.ark_chat_model,
-    )
+    logger.warning("ARK API 未配置，使用降级方案")  # noqa: RUF001
+    return None
 
 
 async def _call_llm(system_prompt: str, user_prompt: str) -> dict | None:
-    """Call LLM API and parse JSON response."""
-    result = _get_client()
-    if not result:
+    """用 aiohttp 直接调 OpenAI 兼容 API，解析 JSON 返回。"""
+    cfg = _get_llm_config()
+    if not cfg:
         return None
-    client, model = result
+    base_url, api_key, model, skip_ssl = cfg
+    url = f"{base_url.rstrip('/')}/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        "temperature": 0.6,
+        "max_tokens": 300,
+    }
+    ssl_ctx = False if skip_ssl else ssl.create_default_context()
+    logger.info("LLM 请求 -> {} model={}", url, model)
     try:
-        resp = await client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.6,
-            max_tokens=300,
-        )
-        content = resp.choices[0].message.content.strip()
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(
+                url,
+                json=payload,
+                headers=headers,
+                ssl=ssl_ctx,
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp,
+        ):
+            body = await resp.json()
+        content = body["choices"][0]["message"]["content"].strip()
+        logger.info("LLM 原始返回: {}", content[:200])
         if content.startswith("```"):
             content = content.split("\n", 1)[1] if "\n" in content else content[3:]
             content = content.rsplit("```", 1)[0]
@@ -110,16 +118,11 @@ async def _call_llm(system_prompt: str, user_prompt: str) -> dict | None:
             return json.loads(content)
         except Exception:
             logger.warning(
-                "LLM JSON 解析失败 (%s)，使用降级方案",  # noqa: RUF001
-                settings.llm_provider,
+                "LLM JSON 解析失败 ({}): {}", settings.llm_provider, content[:200]
             )
             return None
     except Exception as e:
-        logger.warning(
-            "LLM 调用失败 (%s): %s，使用降级方案",  # noqa: RUF001
-            settings.llm_provider,
-            e,
-        )
+        logger.warning("LLM 调用失败 ({}): {}", settings.llm_provider, e)
         return None
 
 

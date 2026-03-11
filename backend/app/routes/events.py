@@ -1,10 +1,10 @@
-import logging
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter
 from fastapi import BackgroundTasks
 from fastapi import Depends
+from loguru import logger
 from pydantic import BaseModel
 
 from app.entities.event import UserEvent
@@ -14,8 +14,6 @@ from app.services.garden import create_sprout
 from app.services.garden import get_user_context
 from app.services.garden import should_generate_sprout_on_event
 from app.utils.deps import current_user
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -36,11 +34,15 @@ class BatchEventsRequest(BaseModel):
 
 async def _try_generate_sprout_from_events(user_id: UUID):
     """后台任务：分析行为事件，尝试生成冒芽"""
-    if not await should_generate_sprout_on_event(user_id):
+    logger.info("开始尝试生成冒芽 user={}", user_id)
+    if not should_generate_sprout_on_event(user_id):
+        logger.info("冷却未到，跳过")  # noqa: RUF001
         return
     ctx = await get_user_context(user_id)
+    logger.info("调用 LLM...")
     result = await analyze_events_and_generate_reply(user_id, ctx)
     if not result:
+        logger.warning("LLM 返回空")
         return
     await create_sprout(
         user_id,
@@ -50,7 +52,7 @@ async def _try_generate_sprout_from_events(user_id: UUID):
         reaction_options=result.get("reaction_options"),
         rec=result.get("rec"),
     )
-    logger.info("冒芽生成（行为触发）: %s", result.get("hook", "")[:30])  # noqa: RUF001
+    logger.info("冒芽生成成功: {}", result.get("hook", "")[:30])
 
 
 @router.post("/batch")

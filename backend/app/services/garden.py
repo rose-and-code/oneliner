@@ -1,6 +1,3 @@
-from datetime import UTC
-from datetime import datetime
-from datetime import timedelta
 from uuid import UUID
 
 from app.entities.event import UserEvent
@@ -10,14 +7,14 @@ from app.entities.user import User
 from app.services.book import _books
 from app.services.book import get_sentence_by_id
 
-MIN_FAVORITES_FOR_SPROUT = 5
-SPROUT_COOLDOWN_HOURS = 12
+MIN_FAVORITES_FOR_SPROUT = 1
+SPROUT_COOLDOWN_HOURS = 0
 
-SPROUT_INITIAL_COOLDOWN_SECONDS = 30
-SPROUT_ACTIVE_COOLDOWN_SECONDS = 120
-SPROUT_STABLE_COOLDOWN_SECONDS = 180
-SPROUT_LONG_COOLDOWN_SECONDS = 300
-MIN_EVENTS_FOR_SPROUT = 2
+SPROUT_INITIAL_COOLDOWN_SECONDS = 0
+SPROUT_ACTIVE_COOLDOWN_SECONDS = 0
+SPROUT_STABLE_COOLDOWN_SECONDS = 0
+SPROUT_LONG_COOLDOWN_SECONDS = 0
+MIN_EVENTS_FOR_SPROUT = 1
 SPROUT_LIST_LIMIT = 20
 
 
@@ -53,43 +50,14 @@ async def mark_sprout_shown(sprout_id: UUID, user_id: UUID):
 
 
 async def should_generate_sprout_on_favorite(user_id: UUID) -> bool:
-    """判断收藏触发时是否应该生成冒芽（低频，12小时冷却）"""
+    """判断收藏触发时是否应该生成冒芽"""
     fav_count = await Favorite.filter(user_id=user_id, is_cancelled=False).count()
-    if fav_count < MIN_FAVORITES_FOR_SPROUT:
-        return False
-    unshown = await Sprout.filter(user_id=user_id, shown=False).exists()
-    if unshown:
-        return False
-    cutoff = datetime.now(UTC) - timedelta(hours=SPROUT_COOLDOWN_HOURS)
-    recent = await Sprout.filter(user_id=user_id, created_at__gte=cutoff).exists()
-    return not recent
+    return fav_count >= MIN_FAVORITES_FOR_SPROUT
 
 
-async def should_generate_sprout_on_event(user_id: UUID) -> bool:
-    """判断行为事件触发时是否应该生成冒芽（高频，衰减冷却）"""
-    unshown = await Sprout.filter(user_id=user_id, shown=False).exists()
-    if unshown:
-        return False
-    event_count = await UserEvent.filter(user_id=user_id).count()
-    if event_count < MIN_EVENTS_FOR_SPROUT:
-        return False
-
-    sprout_count = await Sprout.filter(user_id=user_id).count()
-    if sprout_count == 0:
-        cutoff = datetime.now(UTC) - timedelta(seconds=SPROUT_INITIAL_COOLDOWN_SECONDS)
-        return await UserEvent.filter(user_id=user_id, created_at__gte=cutoff).exists()
-
-    last_sprout = await Sprout.filter(user_id=user_id).order_by("-created_at").first()
-    if not last_sprout:
-        return True
-    elapsed = (datetime.now(UTC) - last_sprout.created_at).total_seconds()
-
-    cooldown = SPROUT_LONG_COOLDOWN_SECONDS
-    if sprout_count <= 2:
-        cooldown = SPROUT_ACTIVE_COOLDOWN_SECONDS
-    elif sprout_count <= 5:
-        cooldown = SPROUT_STABLE_COOLDOWN_SECONDS
-    return elapsed >= cooldown
+def should_generate_sprout_on_event(_user_id: UUID) -> bool:
+    """判断行为事件触发时是否应该生成冒芽"""
+    return True
 
 
 async def get_user_context(user_id: UUID) -> dict:
