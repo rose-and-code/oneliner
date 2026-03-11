@@ -1,15 +1,14 @@
+from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from datetime import timezone
 from uuid import UUID
 
 from app.entities.event import UserEvent
 from app.entities.favorite import Favorite
 from app.entities.sprout import Sprout
 from app.entities.user import User
-from app.services.book import get_sentence_by_id
 from app.services.book import _books
-
+from app.services.book import get_sentence_by_id
 
 MIN_FAVORITES_FOR_SPROUT = 5
 SPROUT_COOLDOWN_HOURS = 12
@@ -38,7 +37,11 @@ async def get_garden_status(user_id: UUID) -> dict:
 
 async def get_unshown_sprout(user_id: UUID) -> Sprout | None:
     """获取最新的未展示冒芽"""
-    return await Sprout.filter(user_id=user_id, shown=False).order_by("-created_at").first()
+    return (
+        await Sprout.filter(user_id=user_id, shown=False)
+        .order_by("-created_at")
+        .first()
+    )
 
 
 async def mark_sprout_shown(sprout_id: UUID, user_id: UUID):
@@ -57,7 +60,7 @@ async def should_generate_sprout_on_favorite(user_id: UUID) -> bool:
     unshown = await Sprout.filter(user_id=user_id, shown=False).exists()
     if unshown:
         return False
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=SPROUT_COOLDOWN_HOURS)
+    cutoff = datetime.now(UTC) - timedelta(hours=SPROUT_COOLDOWN_HOURS)
     recent = await Sprout.filter(user_id=user_id, created_at__gte=cutoff).exists()
     return not recent
 
@@ -73,24 +76,29 @@ async def should_generate_sprout_on_event(user_id: UUID) -> bool:
 
     sprout_count = await Sprout.filter(user_id=user_id).count()
     if sprout_count == 0:
-        cutoff = datetime.now(timezone.utc) - timedelta(seconds=SPROUT_INITIAL_COOLDOWN_SECONDS)
+        cutoff = datetime.now(UTC) - timedelta(seconds=SPROUT_INITIAL_COOLDOWN_SECONDS)
         return await UserEvent.filter(user_id=user_id, created_at__gte=cutoff).exists()
 
     last_sprout = await Sprout.filter(user_id=user_id).order_by("-created_at").first()
     if not last_sprout:
         return True
-    elapsed = (datetime.now(timezone.utc) - last_sprout.created_at).total_seconds()
+    elapsed = (datetime.now(UTC) - last_sprout.created_at).total_seconds()
 
+    cooldown = SPROUT_LONG_COOLDOWN_SECONDS
     if sprout_count <= 2:
-        return elapsed >= SPROUT_ACTIVE_COOLDOWN_SECONDS
-    if sprout_count <= 5:
-        return elapsed >= SPROUT_STABLE_COOLDOWN_SECONDS
-    return elapsed >= SPROUT_LONG_COOLDOWN_SECONDS
+        cooldown = SPROUT_ACTIVE_COOLDOWN_SECONDS
+    elif sprout_count <= 5:
+        cooldown = SPROUT_STABLE_COOLDOWN_SECONDS
+    return elapsed >= cooldown
 
 
 async def get_user_context(user_id: UUID) -> dict:
     """获取用户收藏和行为数据，供 Agent 使用"""
-    favorites = await Favorite.filter(user_id=user_id, is_cancelled=False).order_by("-created_at").limit(50)
+    favorites = (
+        await Favorite.filter(user_id=user_id, is_cancelled=False)
+        .order_by("-created_at")
+        .limit(50)
+    )
     fav_data = []
     for fav in favorites:
         sentence = get_sentence_by_id(str(fav.sentence_id))
@@ -113,7 +121,9 @@ async def get_user_context(user_id: UUID) -> dict:
             }
         fav_data.append(entry)
 
-    recent_events = await UserEvent.filter(user_id=user_id).order_by("-created_at").limit(100)
+    recent_events = (
+        await UserEvent.filter(user_id=user_id).order_by("-created_at").limit(100)
+    )
     events_data = []
     for ev in recent_events:
         sentence = get_sentence_by_id(str(ev.sentence_id)) if ev.sentence_id else None
@@ -172,7 +182,11 @@ async def create_sprout(
 
 async def check_unread_sprout(user_id: UUID) -> dict | None:
     """检查用户是否有未读冒芽，返回最新一条的钩子信息"""
-    sprout = await Sprout.filter(user_id=user_id, shown=False).order_by("-created_at").first()
+    sprout = (
+        await Sprout.filter(user_id=user_id, shown=False)
+        .order_by("-created_at")
+        .first()
+    )
     if not sprout:
         return None
     return {"sprout_id": str(sprout.id), "sprout_hook": sprout.hook or sprout.text[:25]}
@@ -187,17 +201,25 @@ async def get_notification_payload(user_id: UUID) -> dict:
     if not info:
         await User.filter(id=user_id).update(has_unread_sprout=False)
         return {"has_unread_sprout": False}
-    return {"has_unread_sprout": True, "sprout_id": info["sprout_id"], "sprout_hook": info["sprout_hook"]}
+    return {
+        "has_unread_sprout": True,
+        "sprout_id": info["sprout_id"],
+        "sprout_hook": info["sprout_hook"],
+    }
 
 
-async def get_sprout_list(user_id: UUID, limit: int = SPROUT_LIST_LIMIT) -> list[Sprout]:
+async def get_sprout_list(
+    user_id: UUID, limit: int = SPROUT_LIST_LIMIT
+) -> list[Sprout]:
     """获取冒芽时间线"""
     return await Sprout.filter(user_id=user_id).order_by("-created_at").limit(limit)
 
 
 async def submit_sprout_reaction(sprout_id: UUID, user_id: UUID, reaction: str) -> bool:
     """提交用户对冒芽的回应"""
-    updated = await Sprout.filter(id=sprout_id, user_id=user_id).update(reaction=reaction)
+    updated = await Sprout.filter(id=sprout_id, user_id=user_id).update(
+        reaction=reaction
+    )
     return updated > 0
 
 
@@ -214,7 +236,9 @@ def _calc_stage(seed_count: int) -> str:
 
 
 async def _calc_top_themes(user_id: UUID) -> list[str]:
-    favorites = await Favorite.filter(user_id=user_id, is_cancelled=False).values_list("sentence_id", flat=True)
+    favorites = await Favorite.filter(user_id=user_id, is_cancelled=False).values_list(
+        "sentence_id", flat=True
+    )
     if len(favorites) < 3:
         return []
     theme_counts: dict[str, int] = {}

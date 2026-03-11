@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from tortoise import fields
 
 from app.entities.base import BaseEntity
@@ -15,4 +17,4 @@ class UserEvent(BaseEntity):
 
     class Meta:
         table = "user_event"
-        ordering = ["-created_at"]
+        ordering: ClassVar[list[str]] = ["-created_at"]

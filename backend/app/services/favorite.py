@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from app.entities.favorite import Favorite
+from app.services.book import _books
 from app.services.book import get_sentence_by_id
 from app.types.schemas import FavoriteListItem
 from app.types.schemas import PaginatedResponse
@@ -45,7 +46,6 @@ async def get_user_favorites(
         book_title = ""
         book_author = ""
         if sentence:
-            from app.services.book import _books
             for b in _books:
                 if b["id"] == sentence.get("book_id"):
                     book_title = b["title"]

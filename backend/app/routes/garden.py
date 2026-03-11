@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -7,6 +6,7 @@ from fastapi import Depends
 from fastapi import Response
 from pydantic import BaseModel
 
+from app.entities.sprout import Sprout
 from app.entities.user import User
 from app.services.garden import create_sprout
 from app.services.garden import get_garden_status
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/garden", tags=["garden"])
 CurrentUser = Annotated[User, Depends(current_user)]
 
 
-def _to_sprout_response(s) -> SproutResponse:
+def _to_sprout_response(s: Sprout) -> SproutResponse:
     """Convert a Sprout entity to SproutResponse."""
     rec = None
     if s.rec and isinstance(s.rec, dict):
@@ -79,8 +79,7 @@ async def sprout_shown(req: SproutShownRequest, user: CurrentUser):
 
 @router.get("/sprout/check")
 async def check_sprout(user: CurrentUser):
-    payload = await get_notification_payload(user.id)
-    return payload
+    return await get_notification_payload(user.id)
 
 
 @router.get("/sprout/list", response_model=SproutListResponse)

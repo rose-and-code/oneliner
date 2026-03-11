@@ -6,7 +6,11 @@ ENV = os.getenv("ENV", "dev")
 
 
 class Settings(BaseSettings):
-    database_url: str
+    db_host: str = "localhost"
+    db_port: int = 5432
+    db_user: str = "postgres"
+    db_password: str = ""
+    db_name: str = "oneliner"
     jwt_secret: str
     jwt_expire_days: int = 7
     wechat_appid: str = ""
@@ -19,6 +23,10 @@ class Settings(BaseSettings):
     openclaw_base_url: str = "https://54.193.218.157/v1"
     openclaw_model: str = "openclaw"
 
+    @property
+    def database_url(self) -> str:
+        return f"postgres://{self.db_user}:{self.db_password}@{self.db_host}:{self.db_port}/{self.db_name}"
+
     model_config = {"env_file": f".env.{ENV}", "env_file_encoding": "utf-8"}
 
 
@@ -28,7 +36,13 @@ TORTOISE_ORM = {
     "connections": {"default": settings.database_url},
     "apps": {
         "models": {
-            "models": ["app.entities.user", "app.entities.favorite", "app.entities.event", "app.entities.sprout", "aerich.models"],
+            "models": [
+                "app.entities.user",
+                "app.entities.favorite",
+                "app.entities.event",
+                "app.entities.sprout",
+                "aerich.models",
+            ],
             "default_connection": "default",
         }
     },

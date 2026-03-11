@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter
 from fastapi import BackgroundTasks
@@ -27,7 +28,7 @@ router = APIRouter(prefix="/api/favorites", tags=["favorites"])
 CurrentUser = Annotated[User, Depends(current_user)]
 
 
-async def _try_generate_sprout(user_id):
+async def _try_generate_sprout(user_id: UUID):
     """后台任务：尝试为用户生成冒芽（收藏触发）"""
     await asyncio.sleep(1)
     if not await should_generate_sprout_on_favorite(user_id):
@@ -35,8 +36,10 @@ async def _try_generate_sprout(user_id):
     ctx = await get_user_context(user_id)
     result = await generate_sprout(ctx)
     if result and result.get("text"):
-        await create_sprout(user_id, result["text"], target_sentence_id=result.get("target_sentence_id"))
-        logger.info("冒芽生成（收藏触发）: %s", result["text"][:30])
+        await create_sprout(
+            user_id, result["text"], target_sentence_id=result.get("target_sentence_id")
+        )
+        logger.info("冒芽生成（收藏触发）: %s", result["text"][:30])  # noqa: RUF001
 
 
 @router.post("/toggle")

@@ -1,5 +1,6 @@
 import logging
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter
 from fastapi import BackgroundTasks
@@ -33,7 +34,7 @@ class BatchEventsRequest(BaseModel):
     events: list[EventItem]
 
 
-async def _try_generate_sprout_from_events(user_id):
+async def _try_generate_sprout_from_events(user_id: UUID):
     """后台任务：分析行为事件，尝试生成冒芽"""
     if not await should_generate_sprout_on_event(user_id):
         return
@@ -49,7 +50,7 @@ async def _try_generate_sprout_from_events(user_id):
         reaction_options=result.get("reaction_options"),
         rec=result.get("rec"),
     )
-    logger.info("冒芽生成（行为触发）: %s", result.get("hook", "")[:30])
+    logger.info("冒芽生成（行为触发）: %s", result.get("hook", "")[:30])  # noqa: RUF001
 
 
 @router.post("/batch")
