@@ -1,0 +1,34 @@
+#!/bin/bash
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+echo ""
+echo "================================"
+echo "  OneLiner 后端启动"
+echo "================================"
+echo ""
+
+echo "[1/2] 检查 PostgreSQL..."
+if pg_isready -q; then
+  echo -e "  ${GREEN}✓${NC} PostgreSQL 运行中"
+else
+  echo -e "  ${RED}✗${NC} 请先启动 PostgreSQL"
+  exit 1
+fi
+
+echo "[2/2] 启动后端..."
+if lsof -ti:8000 > /dev/null 2>&1; then
+  echo -e "  ${YELLOW}⚠${NC} 端口 8000 已占用，先关闭旧进程"
+  lsof -ti:8000 | xargs kill -9 2>/dev/null
+  sleep 1
+fi
+
+cd "$SCRIPT_DIR"
+echo -e "  ${GREEN}✓${NC} http://localhost:8000"
+echo ""
+exec .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
