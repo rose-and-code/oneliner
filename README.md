@@ -9,15 +9,21 @@ cd backend
 ./start-dev
 ```
 
-### 数据库迁移
+### 数据库
 
 ```bash
 cd backend
-.venv/bin/aerich upgrade       # 执行迁移
-.venv/bin/aerich init-db       # 首次初始化
-.venv/bin/aerich migrate       # 生成迁移文件
-.venv/bin/aerich downgrade     # 回滚
-.venv/bin/aerich history       # 查看历史
+
+createdb -U postgres oneliner                    # 创建数据库
+rm -rf migrations/models                         # 清除旧迁移（首次初始化需要）
+.venv/bin/aerich init-db                         # 首次初始化（建表）
+
+.venv/bin/aerich migrate --name describe_change  # 根据模型变更生成迁移文件
+.venv/bin/aerich upgrade                         # 执行迁移
+.venv/bin/aerich downgrade                       # 回滚上一次
+.venv/bin/aerich history                         # 查看历史
+
+dropdb -U postgres oneliner                      # 删除数据库（重来）
 ```
 
 ### 小程序
